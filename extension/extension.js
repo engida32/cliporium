@@ -18,6 +18,7 @@ const OBJECT_PATH = '/io/github/cliporium/Cliporium';
 const INTERFACE = 'io.github.cliporium.Cliporium';
 const CLIPBOARD = St.ClipboardType.CLIPBOARD;
 const TEXT_MIME = 'text/plain;charset=utf-8';
+const TEXT_MIMES = [TEXT_MIME, 'UTF8_STRING', 'text/plain', 'STRING'];
 const IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 export default class CliporiumExtension extends Extension {
@@ -160,10 +161,12 @@ const CliporiumIndicator = GObject.registerClass({
     }
 
     async _readText() {
-        const bytes = await this._readContent(TEXT_MIME);
-        if (!bytes || bytes.get_size() === 0)
-            return null;
-        return new TextDecoder().decode(bytes.get_data());
+        for (const mime of TEXT_MIMES) {
+            const bytes = await this._readContent(mime);
+            if (bytes && bytes.get_size() > 0)
+                return new TextDecoder().decode(bytes.get_data());
+        }
+        return null;
     }
 
     async _readImage() {
