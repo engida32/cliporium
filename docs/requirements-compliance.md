@@ -162,7 +162,7 @@ release dependency.
 | --- | --- | --- |
 | Valid `metadata.json` | Met | Required keys are present. Deprecated `version` and unused `gettext-domain` were removed. |
 | Unique UUID in required form | Met | `cliporium@engida32.github.io`. The `engida32` GitHub account exists. |
-| Real project URL | Partial | `https://github.com/engida32/cliporium` is the intended URL, but the repository does not exist yet. This is a release blocker. |
+| Real project URL | Met | `https://github.com/engida32/cliporium` is public and returns HTTP 200. |
 | Only tested Shell versions | Met | `shell-version` lists only `50`. Headless testing used GNOME Shell 50.1. |
 | Schema in package | Met | Pack command uses `--schema=schemas/org.gnome.shell.extensions.cliporium.gschema.xml`; `gnome-extensions install` compiles it. |
 | Schema ID base | Met | `org.gnome.shell.extensions.cliporium`. |
@@ -176,7 +176,7 @@ release dependency.
 | --- | --- | --- |
 | Functional and stable | Partial | Unit, lifecycle, capture, search, restore, private-mode, size-limit, upgrade, and removal tests pass. A live logged-in host check remains open. |
 | Differentiate from existing extensions | Partial | README describes the product. A public comparison and listing copy are not written. |
-| Public repository and issue tracker | Partial | Repository does not exist yet. |
+| Public repository and issue tracker | Met | Public repository at `https://github.com/engida32/cliporium`; `develop` is the default branch until the first release. |
 | Respond to review feedback | Partial | Process requirement, not yet exercised. |
 | Approval not guaranteed | Met | Stated in `docs/publishing.md`. |
 
@@ -260,7 +260,7 @@ standard labels these as suggested components, not mandatory file boundaries.
 
 - [x] `metadata.json` is valid.
 - [x] UUID is formatted correctly and uses an existing account namespace.
-- [ ] Repository URL is real and publicly accessible.
+- [x] Repository URL is real and publicly accessible.
 - [x] Only tested Shell versions are listed.
 - [x] Schema ID and path follow the requirements.
 - [x] Schema is included and compiles.
@@ -277,8 +277,7 @@ standard labels these as suggested components, not mandatory file boundaries.
 
 ## Remaining work
 
-1. Create the public repository at the metadata URL and push the source.
-2. Run a live logged-in GNOME 50 Wayland check: popup, focus, search, Enter,
+1. Run a live logged-in GNOME 50 Wayland check: popup, focus, search, Enter,
    pin, delete, clear, private mode, preferences, disable/enable.
-3. Capture screenshots and write the listing description.
-4. Upload to extensions.gnome.org and respond to review.
+2. Capture screenshots and write the listing description.
+3. Upload to extensions.gnome.org and respond to review.

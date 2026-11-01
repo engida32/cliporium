@@ -127,7 +127,8 @@ a client that installs from GNOME Extensions. The release steps are documented
 in [`docs/publishing.md`](docs/publishing.md).
 
 The metadata URL and UUID use the `engida32` account namespace. The public
-repository must exist before upload; replacing the URL with a different owner
+repository is <https://github.com/engida32/cliporium>; `develop` is the default
+branch until the first release. Replacing the URL with a different owner
 requires updating `metadata.json` and the pack command.
 
 ## License
