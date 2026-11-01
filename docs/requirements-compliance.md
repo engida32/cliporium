@@ -51,7 +51,7 @@ Status values:
 | Enter restores selected | Met | `extension/extension.js:172` calls `_activateSelected`; `extension/extension.js:459` writes the item to the clipboard. Hooked run copied `gamma sample` and xclip read it back. |
 | Escape clears then closes | Met | `extension/extension.js:163` clears a non-empty query first and closes on the next press. The hook recorded `{query: "", open: true}` then `{query: "", open: false}`. |
 | Mouse selection works | Met | Standard `PopupMenu` items with `activate` handlers; no custom pointer handling. Not separately scripted. |
-| Responsive at maximum history | Partial | The model trims to the configured limit and the popup renders at most 25 rows, but no 500-item timing run is recorded. |
+| Responsive at maximum history | Partial | `tests/bench_history.js`: at 500 items, load median 1.8 ms and query median 0.13 ms. The popup renders at most 25 rows; popup render latency is not instrumented. |
 
 ## 2.4 Pinning and item actions
 
@@ -203,7 +203,7 @@ standard labels these as suggested components, not mandatory file boundaries.
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Immediate popup | Partial | Headless popup opened and AT-SPI saw it. No timing instrumentation. |
-| Responsive search at limit | Partial | Filtering works; no 500-item benchmark. |
+| Responsive search at limit | Met | `tests/bench_history.js`: `getItems('needle3')` median 0.13 ms at 500 items. This measures the model, not the UI render. |
 | Large items do not freeze | Met | 3 KB against a 1 KB limit was rejected; Shell stayed alive. |
 | Non-blocking storage | Met | Async I/O. |
 | Invalid data does not prevent load | Met | Malformed-file test recovered and loaded. |

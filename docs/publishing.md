@@ -14,8 +14,9 @@ Sources checked on 2026-11-01:
 ## Before you upload
 
 1. The public repository is `https://github.com/engida32/cliporium`. It exists
-   and is publicly readable. `develop` is the default branch until the first
-   release; `main` remains the scaffold branch.
+   and is publicly readable. `develop` is the default branch. `main` is still
+   the old scaffold; merge `develop` into `main` or tag the release before
+   submission so the repository does not present the superseded architecture.
 2. Confirm that the UUID namespace belongs to the project. The current UUID is
    `cliporium@engida32.github.io`.
 3. Confirm that `shell-version` lists only versions actually tested. It currently
@@ -64,6 +65,10 @@ glib-compile-schemas --strict extension/schemas
 
 `gnome-extensions install` compiles the schema during installation; packing only
 copies the XML.
+
+CI runs on Ubuntu 24.04, which ships GNOME 46. Treat that as a packaging smoke
+test, not a GNOME 50 runtime test. The logged-in GNOME 50 check below is the
+release gate.
 
 ## Submit
 
@@ -123,6 +128,7 @@ The current review guidelines require:
 ## Current blockers
 
 - The live logged-in GNOME 50 Wayland check is still open.
+- `main` is six commits behind `develop` and still contains the scaffold.
 - X11 is not supported for this release. The Ubuntu 26.04 / GNOME 50 target host
   has no X11 session files and `gnome-shell --help` has no X11 option.
 - Screenshots and the listing description have not been prepared.

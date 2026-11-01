@@ -13,7 +13,7 @@ script, bundled binary, or database is required.
 - Deduplicates repeated text and moves the existing item to the top.
 - Search as you type, with the search field focused when the popup opens.
 - Keyboard navigation, Enter to restore, Escape to clear or close.
-- Pin and unpin items. Pinned items survive history trimming.
+- Pin and unpin up to 100 items. Pinned items survive history trimming.
 - Delete one item, clear unpinned history, or clear everything with a
   two-step confirmation.
 - Private mode and a separate capture on/off switch.
@@ -82,6 +82,7 @@ remove the data directory to delete everything.
 ```sh
 gjs -m tests/history.test.js
 gjs -m tests/storage.test.js
+gjs -m tests/bench_history.js
 node --check extension/extension.js
 node --check extension/prefs.js
 for file in extension/src/*.js; do node --check "$file"; done
