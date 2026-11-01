@@ -33,6 +33,7 @@ Phase 0 proves the storage and process boundary. One acceptance item remains: th
 | D-Bus round trip | `dbus-run-session -- cargo test -p cliporium-daemon dbus_roundtrip` | 1 passed |
 | Extension pack | `gnome-extensions pack --force --out-dir dist extension` | 3 files, 11866 bytes |
 | JS syntax | `node --input-type=module --check < extension/extension.js` | exit 0 |
+| Tracked data scan | `git ls-files` plus a path scan | no database, blobs, registry, env, or key files; the only PNG is `docs/design/mockup.png` |
 
 The daemon binary was also exercised with `gdbus` on an isolated session bus. It returned `('pong',)` for `Ping`, stored a text capture, returned the item from `Search`, and created `cliporium.sqlite3`. A second run sent an `image/png` payload through `CaptureImage`; the daemon wrote `blobs/sha256/0f/0f4636...` and reported the blob path and mime type from `Recent`.
 
@@ -48,7 +49,6 @@ The legacy fixture is a JSON array in the Clipboard Indicator registry shape. Th
 | --- | --- |
 | Popup opens, search receives focus, Escape closes | Requires enabling the extension in the live GNOME Shell session. A Wayland Shell may need a logout or restart before it loads a newly installed extension. |
 | Text capture through `Meta.Selection` | The code listens for `owner-changed` and reads `St.Clipboard.get_content`, but no live copy event was exercised. |
-| No clipboard data tracked by git | Checked after the first commit with `git ls-files`. |
 
 The extension code path for text capture follows the current Clipboard Indicator extension, which is installed here and uses `Meta.SelectionType.SELECTION_CLIPBOARD`, `Shell.Global.get().display.focusWindow`, and the callback form of `St.Clipboard.get_content`. That is good evidence for the API shape, not proof that the new extension captures correctly under load.
 
