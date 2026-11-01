@@ -24,6 +24,8 @@ jobs:
         run: dbus-run-session -- cargo test --workspace
 
   extension:
+    # Packaging smoke test. The target GNOME 50 runtime check is manual until a
+    # stable GitHub runner image ships GNOME 50.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +35,8 @@ jobs:
           sudo apt-get install -y gjs libglib2.0-bin gnome-shell unzip
       - name: Check license copy
         run: cmp LICENSE extension/LICENSE
+      - name: Validate metadata and schema
+        run: python3 scripts/validate-metadata.py
       - name: Check JavaScript syntax
         run: |
           for file in extension/extension.js extension/prefs.js extension/src/*.js; do
@@ -44,6 +48,8 @@ jobs:
         run: |
           gjs -m tests/history.test.js
           gjs -m tests/storage.test.js
+      - name: Benchmark history model
+        run: gjs -m tests/bench_history.js
       - name: Pack
         run: |
           mkdir -p dist
