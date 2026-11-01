@@ -1,4 +1,4 @@
-import {History} from '../extension/src/history.js';
+import {History, MAX_PINNED_ITEMS} from '../extension/src/history.js';
 
 function assert(condition, message) {
     if (!condition)
@@ -93,5 +93,51 @@ retained.load({
 });
 assertEqual(retained.size, 1, 'retention removes old unpinned items');
 assertEqual(retained.getItems()[0].text, 'new', 'retention keeps recent items');
+
+
+const duplicateIds = new History({limit: 10, maxBytes: 1024, retentionDays: 0});
+duplicateIds.load({
+    version: 1,
+    items: [
+        {id: 'same', text: 'first', kind: 'text', created_at: 1000},
+        {id: 'same', text: 'second', kind: 'text', created_at: 2000},
+    ],
+});
+assertEqual(duplicateIds.size, 2, 'duplicate ids do not drop valid text');
+const first = duplicateIds.getItems().find(item => item.text === 'first');
+const second = duplicateIds.getItems().find(item => item.text === 'second');
+assert(first.id !== second.id, 'duplicate ids are regenerated on load');
+assert(duplicateIds.delete(first.id), 'selected duplicate-id item can be deleted');
+assertEqual(duplicateIds.getItem(second.id)?.text, 'second',
+    'deleting one duplicate id leaves the other item');
+
+const pinCap = new History({limit: 500, maxBytes: 1024, retentionDays: 0});
+for (let index = 0; index < MAX_PINNED_ITEMS + 1; index++)
+    pinCap.captureText(`pin-${index}`, '', base + index);
+for (const item of pinCap.getItems())
+    pinCap.setPinned(item.id, true);
+assertEqual(pinCap.pinnedCount, MAX_PINNED_ITEMS, 'pinned count is capped');
+const extraPin = pinCap.getItems().find(item => !item.pinned);
+assert(extraPin, 'one unpinned item remains after the cap is reached');
+assertEqual(pinCap.setPinned(extraPin.id, true), false)
+assertEqual(pinCap.pinnedCount, MAX_PINNED_ITEMS, 'pinning past the cap is rejected');
+
+const loadedPins = new History({limit: 500, maxBytes: 1024, retentionDays: 0});
+const pinLoad = loadedPins.load({
+    version: 1,
+    items: Array.from({length: MAX_PINNED_ITEMS + 2}, (_, index) => ({
+        id: `pinned-${index}`,
+        text: `pinned-${index}`,
+        kind: 'text',
+        created_at: base + index,
+        pinned: true,
+    })),
+});
+assertEqual(loadedPins.size, MAX_PINNED_ITEMS, 'loaded pins are capped');
+assertEqual(pinLoad.pinnedDropped, 2, 'loaded excess pins are reported');
+assert(!loadedPins.getItems().some(item => item.text === 'pinned-0'),
+    'oldest excess pinned item is dropped');
+assert(loadedPins.getItems().some(item => item.text === `pinned-${MAX_PINNED_ITEMS + 1}`),
+    'newest pinned item is kept');
 
 print('history tests passed');

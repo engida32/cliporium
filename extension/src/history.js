@@ -5,6 +5,7 @@ import {matchesQuery, normalizeQuery} from './search.js';
 const FORMAT_VERSION = 1;
 const PREVIEW_LENGTH = 140;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_PINNED_ITEMS = 100;
 
 function byteLength(text) {
     return new TextEncoder().encode(text).byteLength;
@@ -67,6 +68,14 @@ export class History {
         return this._items.length;
     }
 
+    get pinnedCount() {
+        return this._items.filter(item => item.pinned).length;
+    }
+
+    get maxPinned() {
+        return MAX_PINNED_ITEMS;
+    }
+
     setOptions({limit = this._limit, maxBytes = this._maxBytes,
         retentionDays = this._retentionDays} = {}) {
         this._limit = limit;
@@ -81,6 +90,7 @@ export class History {
             throw new Error('unsupported history format');
 
         const seen = new Set();
+        const seenIds = new Set();
         const items = [];
         let dropped = 0;
 
@@ -91,12 +101,17 @@ export class History {
                 continue;
             }
             seen.add(item.text);
+            if (seenIds.has(item.id))
+                item.id = GLib.uuid_string_random();
+            seenIds.add(item.id);
             items.push(item);
         }
 
         this._items = items;
+        const pinnedBefore = this._items.filter(item => item.pinned).length;
         this._prune();
-        return {dropped};
+        const pinnedDropped = pinnedBefore - this.pinnedCount;
+        return {dropped, pinnedDropped};
     }
 
     captureText(text, sourceApp = '', now = Date.now()) {
@@ -134,6 +149,8 @@ export class History {
     setPinned(id, pinned) {
         const item = this._items.find(candidate => candidate.id === id);
         if (!item)
+            return false;
+        if (pinned && !item.pinned && this.pinnedCount >= MAX_PINNED_ITEMS)
             return false;
         item.pinned = Boolean(pinned);
         this._prune();
@@ -185,7 +202,10 @@ export class History {
             this._items = this._items.filter(item => item.pinned || item.created_at >= cutoff);
         }
 
-        const pinned = this._items.filter(item => item.pinned);
+        const pinned = this._items
+            .filter(item => item.pinned)
+            .sort(compareItems)
+            .slice(0, MAX_PINNED_ITEMS);
         const unpinned = this._items
             .filter(item => !item.pinned)
             .sort(compareItems)
@@ -195,4 +215,4 @@ export class History {
     }
 }
 
-export {FORMAT_VERSION};
+export {FORMAT_VERSION, MAX_PINNED_ITEMS};

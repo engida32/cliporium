@@ -58,24 +58,38 @@ const CliporiumIndicator = GObject.registerClass({
         this._shortcutBound = false;
         this._destroyed = false;
         this._historyReady = false;
+        this._captureGeneration = 0;
         this._warning = '';
+        this._pinWarning = '';
         this._items = [];
         this._visibleItems = [];
         this._resultItems = [];
         this._selectedIndex = 0;
 
-        this.add_child(new St.Icon({
+        this._icon = new St.Icon({
             icon_name: 'edit-paste-symbolic',
             style_class: 'system-status-icon',
-        }));
+        });
+        this.add_child(this._icon);
 
         this._applySettings();
         this._buildMenu();
         this._connectSettings();
         this._connectSelection();
         this._bindShortcut();
-        this.visible = this._settings.get_boolean('show-indicator');
+        this._setIndicatorVisible(this._settings.get_boolean('show-indicator'));
         this._storage.load();
+    }
+
+    _setIndicatorVisible(show) {
+        this._icon.visible = show;
+        this.reactive = show;
+        if (show)
+            this.remove_style_class_name('cliporium-indicator-hidden');
+        else
+            this.add_style_class_name('cliporium-indicator-hidden');
+        if (!show)
+            this.menu.close();
     }
 
     _applySettings() {
@@ -205,10 +219,7 @@ const CliporiumIndicator = GObject.registerClass({
         }
 
         this._settingsIds.push(this._settings.connect('changed::show-indicator', () => {
-            const show = this._settings.get_boolean('show-indicator');
-            this.visible = show;
-            if (!show)
-                this.menu.close();
+            this._setIndicatorVisible(this._settings.get_boolean('show-indicator'));
         }));
 
         this._settingsIds.push(this._settings.connect('changed::toggle-popup', () => {
@@ -280,10 +291,13 @@ const CliporiumIndicator = GObject.registerClass({
             this._settings.get_boolean('private-mode'))
             return;
 
+        const generation = ++this._captureGeneration;
         const {text, tooLarge} = await this._reader.readText(
             this._settings.get_int('max-content-size')
         );
         if (this._destroyed)
+            return;
+        if (generation !== this._captureGeneration)
             return;
         if (!this._settings.get_boolean('capture-enabled') ||
             this._settings.get_boolean('private-mode'))
@@ -412,7 +426,9 @@ const CliporiumIndicator = GObject.registerClass({
                 status += ` · ${pinned} pinned`;
         }
 
-        if (this._warning)
+        if (this._pinWarning)
+            status = this._pinWarning;
+        else if (this._warning)
             status = this._warning;
         if (this._settings.get_boolean('private-mode'))
             status += ' · Private mode';
@@ -466,8 +482,15 @@ const CliporiumIndicator = GObject.registerClass({
     }
 
     _setPinned(item, pinned) {
+        if (pinned && !item.pinned &&
+            this._history.pinnedCount >= this._history.maxPinned) {
+            this._pinWarning = `Pinned limit reached (${this._history.maxPinned}). Unpin an item first.`;
+            this._refresh();
+            return;
+        }
         if (!this._history.setPinned(item.id, pinned))
             return;
+        this._pinWarning = '';
         this._storage.scheduleSave();
         this._refresh();
     }
