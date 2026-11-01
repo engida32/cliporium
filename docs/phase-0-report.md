@@ -26,8 +26,9 @@ Phase 0 proves the storage and process boundary. One acceptance item remains: th
 | --- | --- | --- |
 | Format | `cargo fmt --all --check` | clean |
 | Clippy | `cargo clippy --workspace --all-targets -- -D warnings` | clean |
-| Workspace tests | `dbus-run-session -- cargo test --workspace` | 8 passed |
+| Workspace tests | `dbus-run-session -- cargo test --workspace` | 9 passed |
 | Trigram search | `cargo test -p clip-store trigram` | 1 passed |
+| Legacy registry fixture | `cargo test -p clip-store legacy_registry` | 1 passed |
 | Backup and restore | `cargo test -p clip-backup backup_restore` | 1 passed |
 | D-Bus round trip | `dbus-run-session -- cargo test -p cliporium-daemon dbus_roundtrip` | 1 passed |
 | Extension pack | `gnome-extensions pack --force --out-dir dist extension` | 3 files, 11866 bytes |
@@ -38,6 +39,8 @@ The daemon binary was also exercised with `gdbus` on an isolated session bus. It
 FTS5 trigram search passed on a phrase where the query `rown` matched the word `brown`. Short queries use an `instr` fallback because the trigram tokenizer needs at least three characters.
 
 Backup uses the SQLite online backup API, runs an integrity check on the destination, and restores through a temporary file. The test verifies row count, FTS matches, restore integrity, and search after restore.
+
+The legacy fixture is a JSON array in the Clipboard Indicator registry shape. The parser reads `favorite`, `mimetype`, `contents`, and `tag`. The importer takes text entries, skips image and empty entries, and pins favorites. The test covers two text entries, one image entry, and one blank entry.
 
 ## Not verified
 
@@ -63,11 +66,11 @@ Image bytes travel over D-Bus as `ay`. The daemon hashes the bytes with SHA-256,
 - `README.md`, `metadata.json`, the systemd unit, and CI use `OWNER` until the repository is created.
 - The extension declares only GNOME Shell 50, as agreed for v1.
 - The live UI test can change the verdict on focus timing, popup size, and clipboard capture. Treat those as unproven until the session check.
-- Auto-import from the current Clipboard Indicator registry is not implemented. The current registry and recovery backup were not modified.
+- A legacy registry parser and text importer exist and are tested. Automatic import is not wired to the daemon or prefs yet. The current registry and recovery backup were not modified.
 
 ## Next steps
 
 1. Enable the extension in a GNOME 50 Wayland session and record the popup, focus, Escape, text capture, and image capture results.
-2. Add the legacy registry parser and fixtures for the 220-item live registry and the 118-item recovery backup.
+2. Run the parser against copies of the 220-item live registry and the 118-item recovery backup, then wire import to the daemon or prefs.
 3. Replace the `OWNER` placeholders and confirm the D-Bus name.
 4. Add image previews, pin gestures, and the overflow menu after the Phase 0 UI check.

@@ -1,7 +1,10 @@
+mod legacy;
+
 use clip_core::{
     ClipItem, ItemKind, NewImageCapture, NewTextCapture, blob_absolute_path, blob_relative_path,
     now_unix, sha256_hex, text_preview,
 };
+pub use legacy::{LegacyEntry, parse_registry};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use std::fs;
 use std::path::{Path, PathBuf};

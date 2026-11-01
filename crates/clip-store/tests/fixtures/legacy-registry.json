@@ -1,0 +1,23 @@
+[
+  {
+    "favorite": true,
+    "mimetype": "text/plain;charset=utf-8",
+    "contents": "first legacy item",
+    "tag": "work"
+  },
+  {
+    "favorite": false,
+    "mimetype": "UTF8_STRING",
+    "contents": "second legacy item"
+  },
+  {
+    "favorite": false,
+    "mimetype": "image/png",
+    "contents": "/tmp/clipboard-indicator/missing.png"
+  },
+  {
+    "favorite": false,
+    "mimetype": "text/plain;charset=utf-8",
+    "contents": "   "
+  }
+]

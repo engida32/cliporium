@@ -88,7 +88,7 @@ The D-Bus test needs an isolated session bus, which is why it runs under `dbus-r
 - The extension captures text and images, but image previews and pin gestures are Phase 1 work.
 - `Enter` copies the first result. The final product will copy the focused result.
 - The D-Bus name and repository URL use `OWNER` placeholders until the public repository exists.
-- Auto-import of the current Clipboard Indicator registry is not implemented yet.
+- A legacy registry parser exists and is tested. Automatic import is not wired to the daemon yet.
 
 ## License
 

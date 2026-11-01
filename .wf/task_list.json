@@ -4,37 +4,37 @@
       "id": "u1",
       "what": "Scaffold the repository, Git Flow branches, license, README, CI skeleton, and workflow files",
       "why": "Every later unit needs a stable repository and checkable state",
-      "done": false
+      "done": true
     },
     {
       "id": "u2",
       "what": "Build a minimal GJS extension with a panel indicator, anchored popup, search focus, Escape close, and a D-Bus client",
       "why": "Proves the Shell UI and capture boundary on Wayland",
-      "done": false
+      "done": true
     },
     {
       "id": "u3",
       "what": "Build a minimal Rust daemon with D-Bus Ping, Capture, Search, a SQLite schema, and a systemd unit draft",
       "why": "Proves the process boundary and durable storage service",
-      "done": false
+      "done": true
     },
     {
       "id": "u4",
       "what": "Add FTS5 trigram search and SQLite backup and restore tests",
       "why": "Proves the two core reliability and search claims",
-      "done": false
+      "done": true
     },
     {
       "id": "u5",
       "what": "Add image spool transfer, hash validation, deduplication, and a migration fixture test",
       "why": "Proves large payload handling and the import path",
-      "done": false
+      "done": true
     },
     {
       "id": "u6",
       "what": "Write the Phase 0 compatibility report, run verification, and close the progress note",
       "why": "Produces evidence for the architecture decision",
-      "done": false
+      "done": true
     }
   ]
 }
