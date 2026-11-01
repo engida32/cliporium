@@ -31,7 +31,7 @@ Phase 0 proves the storage and process boundary. One acceptance item remains: th
 | Legacy registry fixture | `cargo test -p clip-store legacy_registry` | 1 passed |
 | Backup and restore | `cargo test -p clip-backup backup_restore` | 1 passed |
 | D-Bus round trip | `dbus-run-session -- cargo test -p cliporium-daemon dbus_roundtrip` | 1 passed |
-| Extension pack | `gnome-extensions pack --force --out-dir dist extension` | 3 files, 11866 bytes |
+| Extension pack | `gnome-extensions pack --force --out-dir dist extension` | 3 files, 11992 bytes |
 | JS syntax | `node --input-type=module --check < extension/extension.js` | exit 0 |
 | Tracked data scan | `git ls-files` plus a path scan | no database, blobs, registry, env, or key files; the only PNG is `docs/design/mockup.png` |
 
