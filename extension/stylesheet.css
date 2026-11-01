@@ -1,0 +1,12 @@
+.cliporium-menu {
+    width: 420px;
+}
+
+.cliporium-search {
+    min-height: 2.2em;
+}
+
+.cliporium-footer {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.85em;
+}

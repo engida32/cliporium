@@ -1,0 +1,10 @@
+{
+  "name": "Cliporium",
+  "description": "A keyboard-first clipboard history for GNOME, backed by a durable local daemon.",
+  "uuid": "cliporium@cliporium.github.io",
+  "shell-version": [
+    "50"
+  ],
+  "url": "https://github.com/OWNER/cliporium",
+  "version": 1
+}

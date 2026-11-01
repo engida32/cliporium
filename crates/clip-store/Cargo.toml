@@ -1,0 +1,20 @@
+[package]
+name = "clip-store"
+description = "SQLite storage and search for Cliporium"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+clip-core = { path = "../clip-core" }
+hex.workspace = true
+rusqlite.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

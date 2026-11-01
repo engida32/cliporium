@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/clip-core",
+    "crates/clip-store",
+    "crates/clip-backup",
+    "crates/cliporium-daemon",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+authors = ["Cliporium contributors"]
+repository = "https://github.com/OWNER/cliporium"
+homepage = "https://github.com/OWNER/cliporium"
+
+[workspace.dependencies]
+anyhow = "1.0"
+hex = "0.4"
+rusqlite = { version = "0.41", features = ["bundled", "backup"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.11"
+tempfile = "3.23"
+thiserror = "2.0"
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.18", features = ["v4"] }
+zbus = { version = "6.2", default-features = false, features = ["tokio", "proxy", "service"] }
+
+[profile.release]
+lto = "thin"
+strip = true

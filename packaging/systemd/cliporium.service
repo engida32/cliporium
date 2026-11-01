@@ -1,0 +1,20 @@
+[Unit]
+Description=Cliporium clipboard storage daemon
+Documentation=https://github.com/OWNER/cliporium
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/cliporium-daemon
+Restart=on-failure
+RestartSec=2
+Environment=RUST_LOG=cliporium_daemon=info
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=-%h/.local/share/cliporium -%h/.local/state/cliporium -%h/.config/cliporium
+
+[Install]
+WantedBy=graphical-session.target

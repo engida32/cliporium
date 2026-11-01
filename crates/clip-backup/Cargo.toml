@@ -1,0 +1,18 @@
+[package]
+name = "clip-backup"
+description = "Verified SQLite backup and restore for Cliporium"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+rusqlite.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+clip-core = { path = "../clip-core" }
+clip-store = { path = "../clip-store" }
+tempfile.workspace = true

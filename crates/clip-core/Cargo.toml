@@ -1,0 +1,15 @@
+[package]
+name = "clip-core"
+description = "Shared types and paths for Cliporium"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+hex.workspace = true
+serde.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
