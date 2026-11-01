@@ -13,8 +13,8 @@ edition = "2024"
 rust-version = "1.89"
 license = "MIT"
 authors = ["Cliporium contributors"]
-repository = "https://github.com/OWNER/cliporium"
-homepage = "https://github.com/OWNER/cliporium"
+repository = "https://github.com/engida32/cliporium"
+homepage = "https://github.com/engida32/cliporium"
 
 [workspace.dependencies]
 anyhow = "1.0"

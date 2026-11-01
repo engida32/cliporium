@@ -5,6 +5,9 @@ on:
     branches: [main, develop]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   rust:
     runs-on: ubuntu-24.04
@@ -24,7 +27,41 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install packer
-        run: sudo apt-get update && sudo apt-get install -y gnome-shell
+      - name: Install GJS and packer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gjs libglib2.0-bin gnome-shell unzip
+      - name: Check license copy
+        run: cmp LICENSE extension/LICENSE
+      - name: Check JavaScript syntax
+        run: |
+          for file in extension/extension.js extension/prefs.js extension/src/*.js; do
+            node --input-type=module --check < "$file"
+          done
+      - name: Compile schema
+        run: glib-compile-schemas --strict extension/schemas
+      - name: Unit tests
+        run: |
+          gjs -m tests/history.test.js
+          gjs -m tests/storage.test.js
       - name: Pack
-        run: mkdir -p dist && gnome-extensions pack --force --out-dir dist extension
+        run: |
+          mkdir -p dist
+          gnome-extensions pack --force \
+            --extra-source=src \
+            --extra-source=LICENSE \
+            --schema=schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
+            --out-dir=dist extension
+      - name: Inspect package
+        run: |
+          pack="dist/cliporium@engida32.github.io.shell-extension.zip"
+          unzip -l "$pack"
+          for file in metadata.json extension.js prefs.js stylesheet.css LICENSE \
+            schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
+            src/clipboard.js src/history.js src/search.js src/storage.js; do
+            unzip -Z1 "$pack" | grep -qx "$file"
+          done
+          if unzip -Z1 "$pack" | grep -E '(^|/)(target|Cargo\.|.*\.rs$|.*\.sqlite3$|history\.json$)'; then
+            echo "package contains a development or data file" >&2
+            exit 1
+          fi

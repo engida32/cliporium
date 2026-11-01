@@ -1,5 +1,11 @@
 # Phase 0 compatibility report
 
+> **Superseded architecture note (2026-11-01):** Phase 0 proved the Rust daemon
+> and SQLite boundary. That boundary is no longer the first-release
+> architecture. The release is now a self-contained GJS extension. See
+> `docs/requirements-compliance.md` for current evidence and open gaps. The
+> daemon remains an optional future desktop application.
+
 Date: 2026-11-01
 
 Phase 0 proves the storage and process boundary. One acceptance item remains: the live popup check in a logged-in GNOME 50 Wayland session. I did not enable the extension in your desktop session, so I am not claiming that check.

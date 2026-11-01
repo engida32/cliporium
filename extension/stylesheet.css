@@ -6,7 +6,17 @@
     min-height: 2.2em;
 }
 
+.cliporium-selected {
+    background-color: rgba(127, 127, 127, 0.28);
+    border-radius: 6px;
+}
+
+.cliporium-warning {
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
 .cliporium-footer {
-    color: rgba(255, 255, 255, 0.55);
+    opacity: 0.65;
     font-size: 0.85em;
 }

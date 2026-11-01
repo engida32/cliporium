@@ -1,6 +1,6 @@
 [Unit]
 Description=Cliporium clipboard storage daemon
-Documentation=https://github.com/OWNER/cliporium
+Documentation=https://github.com/engida32/cliporium
 PartOf=graphical-session.target
 After=graphical-session.target
 

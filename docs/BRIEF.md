@@ -1,5 +1,12 @@
 # Brief: Cliporium, an Ubuntu clipboard manager
 
+> **Superseded architecture note (2026-11-01):** The first release is a
+> self-contained GJS GNOME Shell extension with no required daemon, SQLite, or
+> bundled binaries. This brief describes the original daemon-backed product
+> plan. The Rust workspace remains in the repository as an optional future
+> desktop application. See `docs/ubuntu_clip_requirements.md`,
+> `docs/requirements-compliance.md`, and `README.md` for the release contract.
+
 Status: approved
 Date: 2026-11-01
 Project root: `/home/emmrc-02/personal-works/ubuntu clipy`

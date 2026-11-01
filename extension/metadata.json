@@ -1,10 +1,10 @@
 {
+  "uuid": "cliporium@engida32.github.io",
   "name": "Cliporium",
-  "description": "A keyboard-first clipboard history for GNOME, backed by a durable local daemon.",
-  "uuid": "cliporium@cliporium.github.io",
+  "description": "A local clipboard history for GNOME Shell. Cliporium reads clipboard text to store recent items on this device, never sends them anywhere, and lets you search, pin, and restore them from a keyboard-first popup.",
   "shell-version": [
     "50"
   ],
-  "url": "https://github.com/OWNER/cliporium",
-  "version": 1
+  "url": "https://github.com/engida32/cliporium",
+  "settings-schema": "org.gnome.shell.extensions.cliporium"
 }

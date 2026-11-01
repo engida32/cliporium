@@ -9,3 +9,5 @@ dist/*
 blobs/
 .env
 .DS_Store
+
+*.compiled

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="cliporium">
+  <schema id="org.gnome.shell.extensions.cliporium"
+          path="/org/gnome/shell/extensions/cliporium/">
+    <key name="capture-enabled" type="b">
+      <default>true</default>
+      <summary>Capture clipboard history</summary>
+      <description>Store new clipboard text while the extension is enabled.</description>
+    </key>
+    <key name="private-mode" type="b">
+      <default>false</default>
+      <summary>Private mode</summary>
+      <description>Pause clipboard capture without disabling the extension.</description>
+    </key>
+    <key name="history-limit" type="i">
+      <default>100</default>
+      <range min="10" max="500"/>
+      <summary>History limit</summary>
+      <description>Maximum number of unpinned clipboard items to keep.</description>
+    </key>
+    <key name="max-content-size" type="i">
+      <default>65536</default>
+      <range min="1024" max="1048576"/>
+      <summary>Maximum content size</summary>
+      <description>Largest clipboard text, in bytes, that will be stored.</description>
+    </key>
+    <key name="retention-days" type="i">
+      <default>30</default>
+      <range min="0" max="3650"/>
+      <summary>Retention</summary>
+      <description>Days to keep unpinned items. Zero keeps them until the history limit is reached.</description>
+    </key>
+    <key name="show-indicator" type="b">
+      <default>true</default>
+      <summary>Show panel indicator</summary>
+      <description>Show the Cliporium button in the top panel.</description>
+    </key>
+    <key name="toggle-popup" type="as">
+      <default>[]</default>
+      <summary>Keyboard shortcut</summary>
+      <description>Shortcut that opens the clipboard popup. Unset by default.</description>
+    </key>
+  </schema>
+</schemalist>
