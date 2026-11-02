@@ -48,6 +48,22 @@ jobs:
         run: |
           gjs -m tests/history.test.js
           gjs -m tests/storage.test.js
+          gjs -m tests/display.test.js
+          gjs -m tests/clipboard.test.js
+          gjs -m tests/copy-payload.test.js
+          gjs -m tests/image-store.test.js
+          gjs -m tests/image-utils.test.js
+          gjs -m tests/stylesheet.test.js
+      - name: Headless UI probes
+        run: |
+          if ! gnome-shell --version | grep -q 'GNOME Shell 50'; then
+            echo "Skipping headless probes: GNOME Shell 50 is required"
+            exit 0
+          fi
+          bash tests/headless-toolbar-probe.sh
+          bash tests/headless-pinned-probe.sh
+          bash tests/headless-image-probe.sh
+          CLIPORIUM_TEXT_SCALE=2.0 bash tests/headless-toolbar-probe.sh
       - name: Benchmark history model
         run: gjs -m tests/bench_history.js
       - name: Pack
@@ -64,7 +80,9 @@ jobs:
           unzip -l "$pack"
           for file in metadata.json extension.js prefs.js stylesheet.css LICENSE \
             schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
-            src/clipboard.js src/history.js src/search.js src/storage.js; do
+            src/clipboard.js src/copy-payload.js src/display.js \
+            src/history.js src/image-store.js src/image-utils.js \
+            src/search.js src/storage.js; do
             unzip -Z1 "$pack" | grep -qx "$file"
           done
           if unzip -Z1 "$pack" | grep -E '(^|/)(target|Cargo\.|.*\.rs$|.*\.sqlite3$|history\.json$)'; then
