@@ -77,7 +77,7 @@ Image bytes travel over D-Bus as `ay`. The daemon hashes the bytes with SHA-256,
 ## Assumptions and risks
 
 - `io.github.cliporium.Cliporium` is a placeholder. The public D-Bus name should follow the final repository owner.
-- `README.md`, `metadata.json`, the systemd unit, and CI use `OWNER` until the repository is created.
+- The public repository is `engida32/cliporium`; the planned `OWNER` placeholders were replaced before release.
 - The extension declares only GNOME Shell 50, as agreed for v1.
 - The live check confirmed upgrade activation, popup layout, search, text and image capture, private mode, capture-off suppression, shortcut opening, and disable/enable. Keyboard focus, paste, pins, clear, clean install, and screenshots remain open.
 - A legacy registry parser and text importer exist and are tested. Automatic import is not wired to the daemon or prefs yet. The current registry and recovery backup were not modified.
@@ -86,5 +86,5 @@ Image bytes travel over D-Bus as `ay`. The daemon hashes the bytes with SHA-256,
 
 1. Run `docs/live-verification.md` in a GNOME 50 Wayland session and record the popup, focus, Escape, text capture, and image capture results.
 2. Run the parser against copies of the 220-item live registry and the 118-item recovery backup, then wire import to the daemon or prefs.
-3. Replace the `OWNER` placeholders and confirm the D-Bus name.
+3. Confirm the public repository name and D-Bus naming; the released extension uses the `engida32` namespace and does not use the daemon.
 4. Add image previews, pin gestures, and the overflow menu after the Phase 0 UI check.

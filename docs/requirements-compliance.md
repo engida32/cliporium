@@ -20,9 +20,9 @@ Status values:
 | Handle empty content | Met | `tests/history.test.js` covers empty and blank text. `extension/src/clipboard.js:89` returns null for empty or invalid content. |
 | Avoid duplicate consecutive entries | Met | `extension/src/history.js:102` moves an existing match to the top and refreshes its metadata. `tests/history.test.js` covers the duplicate path. |
 | Configurable history limit | Met | Schema key `history-limit`; `extension/src/history.js:192` applies the limit. |
-| Pause or private mode | Met | `extension/extension.js:279` and `extension/extension.js:288` block capture. Headless private-mode run stored nothing and kept the Shell alive. |
+| Pause or private mode | Met | `extension/extension.js:840-841` and `extension/extension.js:924-925` block capture. Headless private-mode run stored nothing and kept the Shell alive. |
 | Read failures must not crash | Met | `extension/src/clipboard.js` catches read and timeout failures and copies clipboard bytes out of the callback before the source is released. After the fix, live text and image captures completed without a Shell crash. |
-| Images only after testing | Partial | `extension/src/clipboard.js` reads `image/png` and `image/jpeg`; `extension/src/history.js` stores image metadata and `extension/src/image-store.js` writes content-addressed files. Unit tests and `tests/headless-image-probe.sh` cover the model, rendering, search, and copy payload. A live image copy crashed the Shell before the callback-bytes copy fix; live capture is still open. |
+| Images only after testing | Partial | `extension/src/clipboard.js` reads `image/png` and `image/jpeg`; `extension/src/history.js` stores image metadata and `extension/src/image-store.js` writes content-addressed files. Unit tests and `tests/headless-image-probe.sh` cover the model, rendering, search, and copy payload. Live image capture passed after the callback-bytes copy fix. Image preview and paste into another application remain open. |
 | Content-size limit | Met | Schema key `max-content-size`; `extension/src/clipboard.js:71` rejects oversized data. A 3 KB copy against a 1 KB limit stored nothing and the Shell stayed alive. |
 | Application exclusions | Not implemented | Optional. |
 | No capture in private mode | Met | Headless private-mode run. |
@@ -52,7 +52,7 @@ Status values:
 | Enter restores selected | Met | `extension/extension.js:172` calls `_activateSelected`; `extension/extension.js:459` writes the item to the clipboard. Hooked run copied `gamma sample` and xclip read it back. |
 | Escape clears then closes | Met | `extension/extension.js:163` clears a non-empty query first and closes on the next press. The hook recorded `{query: "", open: true}` then `{query: "", open: false}`. |
 | Mouse selection works | Met | Standard `PopupMenu` items with `activate` handlers; no custom pointer handling. Not separately scripted. |
-| Responsive at maximum history | Partial | `tests/bench_history.js`: at 500 items, load median 1.8 ms and query median 0.13 ms. The popup renders at most 25 rows; popup render latency is not instrumented. |
+| Responsive at maximum history | Partial | `tests/bench_history.js`: at 500 items, load median 1.8 ms and query median 0.13 ms. The popup renders at most 100 rows (`MAX_VISIBLE_ITEMS` in `extension/extension.js:29`); popup render latency is not instrumented. |
 
 ## 2.4 Pinning and item actions
 
@@ -86,10 +86,10 @@ Status values:
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Local application data area | Met | `extension/src/storage.js:14`. |
-| Temp file and replace | Met | `extension/src/storage.js:147` uses `replace_contents_bytes_async` with `REPLACE_DESTINATION`. `tests/storage.test.js` verifies the saved file. |
+| Temp file and replace | Met | `extension/src/storage.js:147` uses `replace_contents_bytes_async` with `REPLACE_DESTINATION`. `tests/storage.test.js` verifies the saved file. `extension/src/image-store.js` uses the same asynchronous replacement for image blobs. |
 | Validate on load | Met | `extension/src/history.js:78` validates format and items. `tests/storage.test.js` covers malformed input. |
 | Recover missing, malformed, partial | Met | Missing file starts empty at `extension/src/storage.js:54`; malformed or incompatible data is backed up at `:106`. Partial-write recovery follows from the atomic replace and is not separately fault-injected. |
-| Avoid blocking Shell UI | Partial | History file reads and writes are async. Image decode and storage are bounded by `max-image-size` but currently use synchronous GIO calls. |
+| Avoid blocking Shell UI | Partial | History file reads and writes are async. Image blob writes use `replace_contents_bytes_async`; image decode remains synchronous and is bounded by the dimension and byte limits. |
 | Bound storage | Met | History, text-size, image-size, and retention limits in `extension/src/history.js`. |
 | User-accessible clear | Met | Popup Clear actions delete queued image blobs after the history save succeeds. |
 | Do not claim SQLite durability | Met | README describes atomic JSON, not SQLite transactions. |
@@ -175,8 +175,8 @@ release dependency.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| Functional and stable | Partial | Unit, lifecycle, capture, search, restore, private-mode, size-limit, upgrade, and removal tests pass. Live GNOME 50.1 checks passed for activation, popup, search, text and image capture, private mode, capture off, shortcut, accessible name, and the startup-capture fix. Keyboard focus, paste, pins, clear, clean install, and screenshots remain open. Shortcut conflict handling is covered by the headless toolbar probe. |
-| Differentiate from existing extensions | Partial | README describes the product. A public comparison and listing copy are not written. |
+| Functional and stable | Partial | Unit, lifecycle, capture, search, restore, private-mode, size-limit, image-dimension, asynchronous image-write, upgrade, and removal tests pass. Live GNOME 50.1 checks passed for activation, popup, search, text and image capture, private mode, capture off, shortcut, accessible name, and the startup-capture fix. Keyboard focus, paste, pins, clear, live clean install, and screenshots remain open. Shortcut conflict handling is covered by the headless toolbar probe. The headless clean install and uninstall probe passes in an isolated GNOME 50.1 session. |
+| Differentiate from existing extensions | Partial | README describes the product. Listing copy and a screenshot plan are drafted in `docs/listing.md`; a public comparison is still not written. |
 | Public repository and issue tracker | Met | Public repository at `https://github.com/engida32/cliporium`; `develop` is the default branch until the first release. |
 | Respond to review feedback | Partial | Process requirement, not yet exercised. |
 | Approval not guaranteed | Met | Stated in `docs/publishing.md`. |
@@ -193,7 +193,7 @@ standard labels these as suggested components, not mandatory file boundaries.
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Target version defined | Met | GNOME Shell 50, Ubuntu 26.04. |
-| Test target Ubuntu and GNOME | Partial | GNOME Shell 50.1 Wayland headless tests passed, and a live GNOME 50.1 session passed the upgrade, popup, search, capture, private-mode, shortcut, and enable/disable checks. Keyboard and clean-install checks remain open. |
+| Test target Ubuntu and GNOME | Partial | GNOME Shell 50.1 Wayland headless tests passed, and a live GNOME 50.1 session passed the upgrade, popup, search, capture, private-mode, shortcut, and enable/disable checks. A clean install and uninstall pass in an isolated headless GNOME 50.1 session. Keyboard and live logged-in clean-install checks remain open. |
 | Install, enable, disable, upgrade, removal | Met | Install, enable, disable, and three enable/disable cycles passed. An in-place file upgrade preserved the `history-limit=37` setting, loaded the new stylesheet payload, and enabled cleanly. Removing the extension directory left the Shell alive with no Cliporium errors. |
 | Wayland and X11 | Met | Wayland headless tested. The Ubuntu 26.04 / GNOME 50 target host has no X11 session files and `gnome-shell --help` has no X11 option, so X11 is documented as unsupported for this release. |
 | Document limits | Met | README and this file. |
@@ -233,6 +233,8 @@ standard labels these as suggested components, not mandatory file boundaries.
 | Repeated disable/enable | Met | Three cycles. |
 | Missing, malformed, partial storage | Partial | Missing and malformed tested; partial atomic-write failure not fault-injected. |
 | Large clipboard content | Met | Live oversized copy. |
+| Image dimension cap | Met | `tests/image-utils.test.js` rejects a 10000 × 10000 PNG before decode and reads PNG and JPEG headers. |
+| Asynchronous image write | Met | `tests/image-store.test.js` covers `saveAsync` and private file permissions. |
 | Clipboard failure | Partial | Code has timeout and catch paths; no forced failure test. |
 | Cleanup of signals, timers, UI | Met | Lifecycle review and three-cycle run. |
 | Storage errors do not crash | Met | Malformed recovery and capture runs kept the Shell alive. |
@@ -272,7 +274,8 @@ standard labels these as suggested components, not mandatory file boundaries.
 - [x] No telemetry or unnecessary external dependency.
 - [x] Enable/disable lifecycle cleanup is implemented.
 - [x] Source is readable and not minified.
-- [ ] Screenshots and user documentation for the listing are prepared.
+- [ ] Screenshots are prepared. Listing copy and the shot list are drafted in
+      `docs/listing.md`.
 - [ ] Package tested from a clean install in a live logged-in GNOME 50 session.
       Use `docs/live-verification.md` and record the result.
 - [ ] Maintainer is prepared to respond to review feedback.
@@ -281,8 +284,9 @@ standard labels these as suggested components, not mandatory file boundaries.
 
 1. Finish `docs/live-verification.md`: upgrade, popup, search, text and image
    capture, private mode, capture off, shortcut, and disable/enable passed.
-   Keyboard focus, Enter, Escape, pins, clear, a real shortcut conflict, clean
-   install, and uninstall/reinstall remain open. Screenshots are blocked by the
-   current compositor.
-2. Capture screenshots and write the listing description.
+   Keyboard focus, Enter, Escape, pins, clear, a real shortcut conflict, and the
+   live logged-in clean install and reinstall remain open. The isolated headless
+   clean install and uninstall pass.
+2. Capture screenshots. The listing description and shot list are drafted in
+   `docs/listing.md`; this host has no working screenshot path.
 3. Upload to extensions.gnome.org and respond to review.

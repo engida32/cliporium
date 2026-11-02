@@ -41,25 +41,64 @@ external database is required.
 - GNOME Shell 50 on the Wayland session shipped with Ubuntu 26.04. This release
   does not support X11. The target host has no X11 session files, and
   `gnome-shell --help` exposes no X11 option.
-- GJS 1.88 or newer for development.
-- `gnome-extensions` from GNOME Shell for packing and installing.
+- `gnome-extensions` from GNOME Shell for installing and managing the extension.
+- `glib-compile-schemas` from `libglib2.0-bin` for installing the GSettings
+  schema.
+- GJS 1.88 or newer and GNU Make for development.
+- Rust 1.97 or newer only if you want to run the Rust workspace tests.
 
-## Install from source
+## Installation
+
+### GNOME Extensions
+
+The recommended path is the GNOME Extensions listing. After the listing is
+approved, open <https://extensions.gnome.org/> or search for Cliporium in
+Extension Manager, then enable the extension.
+
+### Release ZIP
+
+Download the ZIP from the project's GitHub Releases page when a release is
+available. Then run:
 
 ```sh
-mkdir -p dist
-gnome-extensions pack --force \
-  --extra-source=src \
-  --extra-source=LICENSE \
-  --schema=schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
-  --out-dir=dist extension
+gnome-extensions install --force \
+  cliporium@engida32.github.io.shell-extension.zip
+gnome-extensions enable cliporium@engida32.github.io
+```
+
+Log out of the desktop and log back in. On Wayland, locking and unlocking does
+not reload the Shell.
+
+### From source
+
+Use this path for development or when testing an unreleased change.
+
+```sh
+git clone https://github.com/engida32/cliporium.git
+cd cliporium
+make pack
 gnome-extensions install --force \
   dist/cliporium@engida32.github.io.shell-extension.zip
 gnome-extensions enable cliporium@engida32.github.io
 ```
 
-A newly installed extension may need a logout or a Shell restart before the
-running session loads it.
+Log out and log back in. The running Shell caches the installed extension
+module, so a reload alone is not enough on Wayland.
+
+### Uninstall
+
+```sh
+gnome-extensions disable cliporium@engida32.github.io
+gnome-extensions uninstall cliporium@engida32.github.io
+```
+
+Uninstalling does not remove clipboard history. To delete it as well:
+
+```sh
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/cliporium"
+```
+
+### Preferences
 
 Open the preferences window to set a keyboard shortcut:
 
@@ -118,7 +157,13 @@ or remove the data directory to delete everything.
 
 ## Development
 
-Run the GJS unit tests:
+`make test` runs metadata validation, the GJS suites, and JavaScript syntax
+checks. `make check` adds the Rust format, lint, and test runs, plus the
+headless probes and an isolated clean install and uninstall when GNOME Shell 50
+is available. `make clean-install` runs only the clean install and uninstall
+probe against the packed ZIP.
+
+Run the GJS unit tests directly:
 
 ```sh
 gjs -m tests/history.test.js
@@ -191,8 +236,8 @@ extension/
   src/copy-payload.js MIME-aware copy payload selection
   src/display.js      relative time, content icons, titles, and row metadata
   src/history.js      history model, dedupe, pinning, limits, retention
-  src/image-store.js  content-addressed image files
-  src/image-utils.js  image decode, MIME labels, byte formatting
+  src/image-store.js  content-addressed image files, asynchronous writes
+  src/image-utils.js  image dimension checks, decode, MIME labels, byte formatting
   src/search.js       query matching across text and image labels
   src/storage.js      atomic JSON persistence, image cleanup, and recovery
   schemas/            GSettings schema
@@ -200,9 +245,9 @@ extension/
 tests/                GJS unit tests and headless Shell probes
 ```
 
-The Shell process only imports Shell, St, Clutter, Meta, GLib, and GObject
-modules. The preferences process only imports GTK, GDK, Adwaita, Gio, and GLib
-modules.
+The Shell process imports Shell, St, Clutter, Meta, GLib, GObject, Gio, and
+Pango modules. The preferences process imports GTK, GDK, Adwaita, Gio, and the
+preferences API.
 
 ## Compatibility and limits
 
@@ -213,9 +258,12 @@ modules.
   [`docs/live-verification.md`](docs/live-verification.md).
 - The popup is capped at 420 px wide and scrolls its recent list after roughly
   six rows, so it stays a card rather than filling the screen.
-- Supports text and PNG/JPEG images. Application exclusions and extension-side
-  backup and restore are not implemented. The Rust backup CLI covers the Rust
-  daemon data directory only.
+- Supports text and PNG/JPEG images. Image headers are checked before decode;
+  images over 8192 pixels on either side or 16 megapixels are rejected. Image
+  blob writes are asynchronous, while decode remains in the Shell process and is
+  bounded by those limits.
+- Application exclusions and extension-side backup and restore are not
+  implemented. The Rust backup CLI covers the Rust daemon data directory only.
 - The extension stores JSON with atomic replacement. It does not claim SQLite
   durability or transactional guarantees.
 - GNOME Extensions review is not guaranteed.
@@ -224,7 +272,8 @@ modules.
 
 GNOME Extensions is the review and distribution authority. Extension Manager is
 a client that installs from GNOME Extensions. The release steps are documented
-in [`docs/publishing.md`](docs/publishing.md).
+in [`docs/publishing.md`](docs/publishing.md), and the listing copy and
+screenshot plan are in [`docs/listing.md`](docs/listing.md).
 
 The metadata URL and UUID use the `engida32` account namespace. The public
 repository is <https://github.com/engida32/cliporium>. `develop` is the default

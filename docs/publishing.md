@@ -14,8 +14,8 @@ Sources checked on 2026-11-01:
 ## Before you upload
 
 1. The public repository is `https://github.com/engida32/cliporium`. It exists
-   and is publicly readable. `develop` is the default branch. `main` is current
-   with `develop`, so both branches show the standalone extension.
+   and is publicly readable. `develop` is the default branch. `main` is the
+   release branch and may lag `develop` between releases.
 2. Confirm that the UUID namespace belongs to the project. The current UUID is
    `cliporium@engida32.github.io`.
 3. Confirm that `shell-version` lists only versions actually tested. It currently
@@ -35,12 +35,7 @@ Sources checked on 2026-11-01:
 From the repository root:
 
 ```sh
-mkdir -p dist
-gnome-extensions pack --force \
-  --extra-source=src \
-  --extra-source=LICENSE \
-  --schema=schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
-  --out-dir=dist extension
+make pack
 ```
 
 The package is
@@ -127,9 +122,18 @@ The current review guidelines require:
 
 ## Current blockers
 
-- The live logged-in GNOME 50 Wayland check is still open. Use
-  `docs/live-verification.md` and record the results there.
+- The live logged-in GNOME 50 Wayland check is still open for keyboard focus,
+  Enter and paste, Escape, pin and clear controls, preview actions, and a real
+  shortcut conflict. Use `docs/live-verification.md` and record the results
+  there.
+- Clean install and uninstall pass in an isolated headless GNOME 50.1 session
+  with a temporary `HOME` and `XDG_DATA_HOME`. The logged-in clean-install check
+  is still open.
 - X11 is not supported for this release. The Ubuntu 26.04 / GNOME 50 target host
   has no X11 session files and `gnome-shell --help` has no X11 option.
-- Screenshots and the listing description have not been prepared.
+- Screenshots are blocked on this host. The Shell screenshot service is not
+  exported, the portal reports that the screenshot backend needs an access
+  implementation, and the Shell screencast service reports
+  `All pipelines failed to start`. The listing copy and shot list are drafted in
+  `docs/listing.md`.
 - An extensions.gnome.org account and upload are not done.

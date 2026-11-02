@@ -16,8 +16,8 @@ gnome-extensions info cliporium@engida32.github.io
 git status --short
 ```
 
-Expect `GNOME Shell 50.1`, `Enabled: Yes`, and `State: ACTIVE`. The dirty
-worktree is expected until the changes are committed.
+Expect `GNOME Shell 50.1`, `Enabled: Yes`, and `State: ACTIVE`. The worktree
+should be clean before you build the submission package.
 
 Back up the live history before touching the installed extension:
 
@@ -41,12 +41,7 @@ gsettings --schemadir \
 Build and inspect the submission package:
 
 ```sh
-mkdir -p dist
-gnome-extensions pack --force \
-  --extra-source=src \
-  --extra-source=LICENSE \
-  --schema=schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
-  --out-dir=dist extension
+make pack
 unzip -l dist/cliporium@engida32.github.io.shell-extension.zip
 ```
 
@@ -185,9 +180,10 @@ removed afterward.
 | Private mode and capture off | PASS | Both settings suppressed live capture. With capture off, a probe was copied, capture was re-enabled, and the extension was disabled/enabled; the probe stayed absent. |
 | Disable and enable | PASS | Disable produced `INACTIVE`; enable produced `ACTIVE`; history stayed intact. The same run exposed P3-4. |
 | Logs clean | PASS | No Cliporium JavaScript errors. One `Keystring synthesis failure` line came from the AT-SPI injection attempt. |
-| Clean install | NOT RUN | Requires a disposable account or VM. |
-| Uninstall and reinstall | NOT RUN | Requires the clean-install sequence. |
-| Screenshots | BLOCKED | `grim` reported the compositor does not support `wlr-screencopy-unstable-v1`; the Shell screenshot API returned `AccessDenied`. |
+| Image dimension cap | PASS (headless) | `tests/image-utils.test.js` reads PNG and JPEG headers and rejects a 10000 × 10000 PNG before decode. `tests/image-store.test.js` covers asynchronous `saveAsync` writes and 0600 permissions. |
+| Clean install | PARTIAL (headless) | `tests/headless-clean-install-probe.sh` installed the packed ZIP under a temporary `HOME` and `XDG_DATA_HOME` in GNOME Shell 50.1, confirmed the files and compiled schema, confirmed the Shell saw the UUID with `Enabled: Yes`, then uninstalled it and confirmed the directory was removed. The live logged-in account check is still open. |
+| Uninstall and reinstall | PARTIAL (headless) | The headless clean-install probe uninstalled the extension and confirmed removal. Reinstall in a live logged-in GNOME 50 session is still open. |
+| Screenshots | BLOCKED | `grim` reported the compositor does not support `wlr-screencopy-unstable-v1`. `org.gnome.Shell.Screenshot` was not provided by any service file. The desktop portal reported that the screenshot backend requires an access implementation. `org.gnome.Shell.Screencast` returned `All pipelines failed to start`. |
 
 Live findings:
 
@@ -207,5 +203,7 @@ Live findings:
   between Recent and Pinned. The toolbar probe sets the recent view to 120,
   switches views, and confirms the value returns to 120.
 
-Do not treat the keyboard, pin, clear, clean-install, uninstall, or screenshot
-rows as complete. Finish those before uploading the package.
+Do not treat the keyboard, pin, clear, preview-paste, live clean-install, live
+uninstall and reinstall, or screenshot rows as complete. Finish those before
+uploading the package. The headless clean-install and image-cap rows are
+reproducible with `make clean-install` and `make test`.
