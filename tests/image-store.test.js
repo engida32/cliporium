@@ -22,6 +22,23 @@ function fileMode(path) {
     return info.get_attribute_uint32('unix::mode') & 0o777;
 }
 
+function waitFor(promise) {
+    const loop = GLib.MainLoop.new(null, false);
+    let value;
+    let error;
+    promise.then(result => {
+        value = result;
+        loop.quit();
+    }, failure => {
+        error = failure;
+        loop.quit();
+    });
+    loop.run();
+    if (error)
+        throw error;
+    return value;
+}
+
 const root = GLib.dir_make_tmp('cliporium-images-XXXXXX');
 const store = new ImageStore({dataHome: root});
 const bytes = new TextEncoder().encode('not a real png, but stable bytes');
@@ -43,6 +60,17 @@ assertEqual(new TextDecoder().decode(loaded.get_data()), new TextDecoder().decod
 
 const again = store.save(bytes, 'image/png');
 assertEqual(again.blob_path, saved.blob_path, 'duplicate bytes reuse the same path');
+
+const asyncBytes = new TextEncoder().encode('async image bytes');
+const asyncSaved = waitFor(store.saveAsync(asyncBytes, 'image/png'));
+assertEqual(asyncSaved.mime, 'image/png', 'async image mime is kept');
+assertEqual(asyncSaved.byte_size, asyncBytes.byteLength, 'async image size is reported');
+assertEqual(asyncSaved.created, true, 'async image is created');
+assert(store.exists(asyncSaved.blob_path), 'async image exists');
+assertEqual(fileMode(store.pathFor(asyncSaved.blob_path)), 0o600,
+    'async image is private');
+const asyncAgain = waitFor(store.saveAsync(asyncBytes, 'image/png'));
+assertEqual(asyncAgain.created, false, 'duplicate async image is not recreated');
 
 let rejected = false;
 try {

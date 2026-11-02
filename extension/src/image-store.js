@@ -36,7 +36,7 @@ export class ImageStore {
         }
     }
 
-    save(bytes, mime) {
+    _prepare(bytes, mime) {
         const normalizedMime = typeof mime === 'string' ? mime.toLowerCase() : '';
         const extension = imageExtension(normalizedMime);
         if (!extension)
@@ -52,15 +52,40 @@ export class ImageStore {
             glibBytes
         ).toLowerCase();
         const blobPath = `${IMAGE_DIRECTORY}/${sha256}.${extension}`;
-        const path = this.pathFor(blobPath);
+        return {
+            glibBytes,
+            normalizedMime,
+            size,
+            sha256,
+            blobPath,
+            path: this.pathFor(blobPath),
+        };
+    }
+
+    _ensureDirectory() {
+        GLib.mkdir_with_parents(this._directory, 0o700);
+        GLib.chmod(this._directory, 0o700);
+    }
+
+    _result(prepared, created) {
+        return {
+            sha256: prepared.sha256,
+            mime: prepared.normalizedMime,
+            byte_size: prepared.size,
+            blob_path: prepared.blobPath,
+            created,
+        };
+    }
+
+    save(bytes, mime) {
+        const prepared = this._prepare(bytes, mime);
         let created = false;
 
-        if (!this.exists(blobPath)) {
+        if (!this.exists(prepared.blobPath)) {
             try {
-                GLib.mkdir_with_parents(this._directory, 0o700);
-                GLib.chmod(this._directory, 0o700);
-                const [ok] = Gio.File.new_for_path(path).replace_contents(
-                    glibBytes.get_data(),
+                this._ensureDirectory();
+                const [ok] = Gio.File.new_for_path(prepared.path).replace_contents(
+                    prepared.glibBytes.get_data(),
                     null,
                     false,
                     Gio.FileCreateFlags.REPLACE_DESTINATION,
@@ -68,22 +93,55 @@ export class ImageStore {
                 );
                 if (!ok)
                     throw new Error('image could not be written');
-                GLib.chmod(path, 0o600);
+                GLib.chmod(prepared.path, 0o600);
                 created = true;
             } catch (error) {
                 throw new Error(`image could not be stored: ${error.message}`);
             }
         } else {
-            GLib.chmod(path, 0o600);
+            GLib.chmod(prepared.path, 0o600);
         }
 
-        return {
-            sha256,
-            mime: normalizedMime,
-            byte_size: size,
-            blob_path: blobPath,
-            created,
-        };
+        return this._result(prepared, created);
+    }
+
+    saveAsync(bytes, mime) {
+        const prepared = this._prepare(bytes, mime);
+        if (this.exists(prepared.blobPath)) {
+            GLib.chmod(prepared.path, 0o600);
+            return Promise.resolve(this._result(prepared, false));
+        }
+
+        try {
+            this._ensureDirectory();
+        } catch (error) {
+            return Promise.reject(
+                new Error(`image could not be stored: ${error.message}`)
+            );
+        }
+
+        return new Promise((resolve, reject) => {
+            Gio.File.new_for_path(prepared.path).replace_contents_bytes_async(
+                prepared.glibBytes,
+                null,
+                false,
+                Gio.FileCreateFlags.REPLACE_DESTINATION,
+                null,
+                (file, result) => {
+                    try {
+                        const [ok] = file.replace_contents_finish(result);
+                        if (!ok)
+                            throw new Error('image could not be written');
+                        GLib.chmod(prepared.path, 0o600);
+                        resolve(this._result(prepared, true));
+                    } catch (error) {
+                        reject(
+                            new Error(`image could not be stored: ${error.message}`)
+                        );
+                    }
+                }
+            );
+        });
     }
 
     load(blobPath) {

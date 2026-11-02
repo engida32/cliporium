@@ -879,13 +879,20 @@ const CliporiumIndicator = GObject.registerClass({
         let dimensions;
         try {
             dimensions = decodeImage(image.bytes);
-        } catch {
+        } catch (error) {
+            if (error.message.includes('exceed the supported limit')) {
+                this._setNotice(
+                    'Image dimensions are larger than the supported limit.',
+                    true,
+                    4000
+                );
+            }
             return;
         }
 
         let saved;
         try {
-            saved = this._imageStore.save(image.bytes, image.mime);
+            saved = await this._imageStore.saveAsync(image.bytes, image.mime);
         } catch (error) {
             this._setNotice(
                 `Image could not be stored: ${error.message}`,
