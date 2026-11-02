@@ -16,13 +16,13 @@ export default class CliporiumPreferences extends ExtensionPreferences {
 
         const captureGroup = new Adw.PreferencesGroup({
             title: _('Capture'),
-            description: _('Clipboard text stays on this computer. Cliporium never sends it anywhere.'),
+            description: _('Clipboard text and images stay on this computer. Cliporium never sends them anywhere.'),
         });
         page.add(captureGroup);
 
         const captureRow = new Adw.SwitchRow({
             title: _('Capture clipboard'),
-            subtitle: _('Store text copied while the extension is enabled.'),
+            subtitle: _('Store text and images copied while the extension is enabled.'),
         });
         settings.bind('capture-enabled', captureRow, 'active',
             Gio.SettingsBindFlags.DEFAULT);
@@ -59,8 +59,25 @@ export default class CliporiumPreferences extends ExtensionPreferences {
             step: 1,
             value: Math.round(settings.get_int('max-content-size') / 1024),
             toSetting: value => Math.round(value) * 1024,
+            fromSetting: value => Math.round(value / 1024),
         });
         captureGroup.add(sizeRow);
+
+        const imageSizeRow = this._spinRow({
+            settings,
+            key: 'max-image-size',
+            title: _('Maximum image size'),
+            subtitle: _('Larger images are ignored. Value is in mebibytes.'),
+            lower: 1,
+            upper: 32,
+            step: 1,
+            value: Math.round(
+                settings.get_int('max-image-size') / (1024 * 1024)
+            ),
+            toSetting: value => Math.round(value) * 1024 * 1024,
+            fromSetting: value => Math.round(value / (1024 * 1024)),
+        });
+        captureGroup.add(imageSizeRow);
 
         const retentionRow = this._spinRow({
             settings,
@@ -132,7 +149,7 @@ export default class CliporiumPreferences extends ExtensionPreferences {
     }
 
     _spinRow({settings, key, title, subtitle, lower, upper, step, value,
-        toSetting}) {
+        toSetting, fromSetting = stored => stored}) {
         const adjustment = new Gtk.Adjustment({
             lower,
             upper,
@@ -149,9 +166,7 @@ export default class CliporiumPreferences extends ExtensionPreferences {
             settings.set_int(key, toSetting(row.get_value()));
         });
         const changedId = settings.connect(`changed::${key}`, () => {
-            const stored = key === 'max-content-size'
-                ? Math.round(settings.get_int(key) / 1024)
-                : settings.get_int(key);
+            const stored = fromSetting(settings.get_int(key));
             if (row.get_value() !== stored)
                 row.set_value(stored);
         });

@@ -5,5 +5,9 @@ export function normalizeQuery(query) {
 export function matchesQuery(item, query) {
     if (!query)
         return true;
-    return item.text.toLocaleLowerCase().includes(query);
+    return [item.text, item.preview, item.mime]
+        .filter(value => typeof value === 'string' && value.length > 0)
+        .join('\n')
+        .toLocaleLowerCase()
+        .includes(query);
 }

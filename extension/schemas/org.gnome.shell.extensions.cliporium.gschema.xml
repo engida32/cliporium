@@ -5,7 +5,7 @@
     <key name="capture-enabled" type="b">
       <default>true</default>
       <summary>Capture clipboard history</summary>
-      <description>Store new clipboard text while the extension is enabled.</description>
+      <description>Store new clipboard text and images while the extension is enabled.</description>
     </key>
     <key name="private-mode" type="b">
       <default>false</default>
@@ -23,6 +23,12 @@
       <range min="1024" max="1048576"/>
       <summary>Maximum content size</summary>
       <description>Largest clipboard text, in bytes, that will be stored.</description>
+    </key>
+    <key name="max-image-size" type="i">
+      <default>8388608</default>
+      <range min="1048576" max="33554432"/>
+      <summary>Maximum image size</summary>
+      <description>Largest clipboard image, in bytes, that will be stored.</description>
     </key>
     <key name="retention-days" type="i">
       <default>30</default>

@@ -2,6 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import {History, MAX_PINNED_ITEMS} from '../extension/src/history.js';
+import {ImageStore} from '../extension/src/image-store.js';
 import {HistoryStorage} from '../extension/src/storage.js';
 
 function assert(condition, message) {
@@ -251,5 +252,190 @@ assertEqual(readText(recoveryPath), '{not json',
     'failed recovery backup leaves the corrupt original intact');
 recoveryStorage.destroy();
 GLib.setenv('XDG_DATA_HOME', root, true);
+
+
+const missingRoot = GLib.dir_make_tmp('cliporium-missing-image-XXXXXX');
+const missingStore = new ImageStore({dataHome: missingRoot});
+const missingHistory = new History({
+    limit: 10,
+    maxBytes: 1024,
+    maxImageBytes: 4096,
+    retentionDays: 30,
+});
+const missingDirectory = GLib.build_filenamev([missingRoot, 'cliporium']);
+GLib.mkdir_with_parents(missingDirectory, 0o700);
+writeText(historyPathFor(missingDirectory), JSON.stringify({
+    version: 2,
+    items: [{
+        id: 'missing-image',
+        kind: 'image',
+        mime: 'image/png',
+        byte_size: 100,
+        blob_path: `images/${'e'.repeat(64)}.png`,
+        sha256: 'e'.repeat(64),
+        width: 10,
+        height: 10,
+        created_at: Date.now(),
+        preview: 'Image',
+    }],
+}));
+let missingLoaded = false;
+let missingWarning = '';
+const missingLoop = GLib.MainLoop.new(null, false);
+const missingStorage = new HistoryStorage({
+    history: missingHistory,
+    dataHome: missingRoot,
+    imageStore: missingStore,
+    onLoaded: () => {
+        missingLoaded = true;
+        missingLoop.quit();
+    },
+    onWarning: message => {
+        missingWarning = message;
+    },
+});
+missingStorage.load();
+missingLoop.run();
+assert(missingLoaded, 'missing-image history loads');
+assertEqual(missingHistory.size, 0, 'missing image item is dropped');
+assert(missingWarning.includes('missing image'), 'missing image is reported');
+missingStorage.destroy();
+
+const oversizedRoot = GLib.dir_make_tmp('cliporium-oversized-pinned-image-XXXXXX');
+const oversizedStore = new ImageStore({dataHome: oversizedRoot});
+const oversizedSaved = oversizedStore.save(
+    new TextEncoder().encode('pinned image bytes larger than the configured limit'),
+    'image/png'
+);
+const oversizedDirectory = GLib.build_filenamev([oversizedRoot, 'cliporium']);
+GLib.mkdir_with_parents(oversizedDirectory, 0o700);
+writeText(historyPathFor(oversizedDirectory), JSON.stringify({
+    version: 2,
+    items: [{
+        id: 'oversized-pinned-image',
+        kind: 'image',
+        mime: 'image/png',
+        byte_size: oversizedSaved.byte_size,
+        blob_path: oversizedSaved.blob_path,
+        sha256: oversizedSaved.sha256,
+        width: 10,
+        height: 10,
+        created_at: Date.now(),
+        pinned: true,
+        preview: 'Image',
+    }],
+}));
+const oversizedHistory = new History({
+    limit: 10,
+    maxBytes: 1024,
+    maxImageBytes: 8,
+    retentionDays: 30,
+});
+let oversizedLoaded = false;
+let oversizedWarning = '';
+const oversizedLoop = GLib.MainLoop.new(null, false);
+const oversizedStorage = new HistoryStorage({
+    history: oversizedHistory,
+    dataHome: oversizedRoot,
+    imageStore: oversizedStore,
+    onLoaded: () => {
+        oversizedLoaded = true;
+        oversizedLoop.quit();
+    },
+    onWarning: message => {
+        oversizedWarning = message;
+    },
+});
+oversizedStorage.load();
+oversizedLoop.run();
+assert(oversizedLoaded, 'oversized pinned image history loads');
+assertEqual(oversizedHistory.size, 1,
+    'oversized pinned image is kept on load');
+assert(oversizedHistory.getItems()[0].pinned,
+    'oversized loaded image stays pinned');
+assert(oversizedStore.exists(oversizedSaved.blob_path),
+    'oversized pinned image blob is kept on load');
+assert(oversizedWarning.includes('pinned'),
+    'oversized pinned image is reported');
+oversizedStorage.destroy();
+
+const cleanupRoot = GLib.dir_make_tmp('cliporium-image-cleanup-XXXXXX');
+const cleanupStore = new ImageStore({dataHome: cleanupRoot});
+const cleanupSaved = cleanupStore.save(
+    new TextEncoder().encode('delete me after the history save'),
+    'image/png'
+);
+const cleanupHistory = new History({
+    limit: 10,
+    maxBytes: 1024,
+    maxImageBytes: 4096,
+    retentionDays: 30,
+});
+cleanupHistory.captureImage(cleanupSaved, '', Date.now());
+let cleanupSavedFired = false;
+const cleanupLoop = GLib.MainLoop.new(null, false);
+const cleanupStorage = new HistoryStorage({
+    history: cleanupHistory,
+    dataHome: cleanupRoot,
+    imageStore: cleanupStore,
+    onLoaded: () => {
+        const item = cleanupHistory.getItems()[0];
+        assert(item, 'cleanup image is loaded');
+        cleanupHistory.delete(item.id);
+        cleanupStorage.scheduleSave();
+    },
+    onSaved: () => {
+        cleanupSavedFired = true;
+        assert(!cleanupStore.exists(cleanupSaved.blob_path),
+            'deleted image blob is removed after the history save');
+        cleanupStorage.destroy();
+        cleanupLoop.quit();
+    },
+});
+cleanupStorage.load();
+cleanupLoop.run();
+assert(cleanupSavedFired, 'cleanup save completes');
+
+
+const orphanRoot = GLib.dir_make_tmp('cliporium-orphan-image-XXXXXX');
+const orphanStore = new ImageStore({dataHome: orphanRoot});
+const orphanSaved = orphanStore.save(
+    new TextEncoder().encode('orphan image bytes'),
+    'image/png'
+);
+const orphanDirectory = GLib.build_filenamev([orphanRoot, 'cliporium']);
+GLib.mkdir_with_parents(orphanDirectory, 0o700);
+writeText(historyPathFor(orphanDirectory), JSON.stringify({
+    version: 2,
+    items: [{
+        id: 'text-only',
+        kind: 'text',
+        text: 'no images here',
+        created_at: Date.now(),
+    }],
+}));
+const orphanHistory = new History({
+    limit: 10,
+    maxBytes: 1024,
+    maxImageBytes: 4096,
+    retentionDays: 30,
+});
+let orphanLoaded = false;
+const orphanLoop = GLib.MainLoop.new(null, false);
+const orphanStorage = new HistoryStorage({
+    history: orphanHistory,
+    dataHome: orphanRoot,
+    imageStore: orphanStore,
+    onLoaded: () => {
+        orphanLoaded = true;
+        orphanLoop.quit();
+    },
+});
+orphanStorage.load();
+orphanLoop.run();
+assert(orphanLoaded, 'orphan cleanup history loads');
+assert(!orphanStore.exists(orphanSaved.blob_path),
+    'unreferenced image blob is removed on load');
+orphanStorage.destroy();
 
 print('storage tests passed');

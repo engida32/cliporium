@@ -1,7 +1,7 @@
 {
   "uuid": "cliporium@engida32.github.io",
   "name": "Cliporium",
-  "description": "A local clipboard history for GNOME Shell. Cliporium reads clipboard text to store recent items on this device, never sends them anywhere, and lets you search, pin, and restore them from a keyboard-first popup.",
+  "description": "A local clipboard history for GNOME Shell. Cliporium reads clipboard text and images to store recent items on this device, never sends them anywhere, and lets you search, pin, and restore them from a keyboard-first popup.",
   "shell-version": [
     "50"
   ],

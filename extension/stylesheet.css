@@ -1,24 +1,598 @@
 .cliporium-menu {
     width: 420px;
+    padding: 0;
+    border-radius: 12px;
 }
 
-.cliporium-search {
-    min-height: 2.2em;
+.cliporium-menu.cliporium-dark {
+    background-color: #2d2a28;
+    color: #f7f4f1;
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
-.cliporium-selected {
-    background-color: rgba(127, 127, 127, 0.28);
+.cliporium-menu.cliporium-light {
+    background-color: #fbfaf8;
+    color: #2d2a28;
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.cliporium-card-host {
+    width: 420px;
+    padding: 0;
+    margin: 0;
+    spacing: 0;
+}
+
+.cliporium-card {
+    width: 396px;
+    padding: 12px;
+    spacing: 8px;
+    border-radius: 12px;
+}
+
+.cliporium-dark {
+    color: #f7f4f1;
+}
+
+.cliporium-light {
+    color: #2d2a28;
+}
+
+.cliporium-dark StLabel {
+    color: #f7f4f1;
+}
+
+.cliporium-light StLabel {
+    color: #2d2a28;
+}
+
+.cliporium-toolbar {
+    spacing: 6px;
+}
+
+.cliporium-icon-button {
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 8px;
+    background-color: transparent;
+}
+
+.cliporium-dark .cliporium-icon-button {
+    color: #f7f4f1;
+}
+
+.cliporium-light .cliporium-icon-button {
+    color: #2d2a28;
+}
+
+.cliporium-icon-button:hover {
+    background-color: rgba(127, 127, 127, 0.18);
+}
+
+.cliporium-icon-button:active {
+    background-color: rgba(127, 127, 127, 0.3);
+}
+
+.cliporium-search-pill {
+    spacing: 6px;
+    padding: 0 8px;
+    min-height: 32px;
+    border-radius: 10px;
+    border: 1px solid rgba(127, 127, 127, 0.24);
+}
+
+.cliporium-dark .cliporium-search-pill {
+    background-color: rgba(255, 255, 255, 0.055);
+}
+
+.cliporium-light .cliporium-search-pill {
+    background-color: rgba(0, 0, 0, 0.045);
+}
+
+.cliporium-search-pill.cliporium-search-focused {
+    border-color: #e95420;
+    box-shadow: 0 0 0 2px rgba(233, 84, 32, 0.22);
+}
+
+.cliporium-search-icon {
+    opacity: 0.58;
+}
+
+.cliporium-search-hint {
+    font-size: 11px;
+    opacity: 0.68;
+    padding-right: 2px;
+}
+
+.cliporium-dark .cliporium-search-hint {
+    color: #f7f4f1;
+}
+
+.cliporium-light .cliporium-search-hint {
+    color: #2d2a28;
+}
+
+.cliporium-search-entry {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    min-height: 1.4em;
+    font-size: 12px;
+}
+
+.cliporium-dark .cliporium-search-entry {
+    color: #f7f4f1;
+}
+
+.cliporium-light .cliporium-search-entry {
+    color: #2d2a28;
+}
+
+.cliporium-search-entry:focus {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.cliporium-section-header {
+    spacing: 8px;
+    padding: 0 2px;
+}
+
+.cliporium-section-content {
+    spacing: 6px;
+}
+
+.cliporium-pinned-header {
+    spacing: 8px;
+    padding: 0 2px;
+}
+
+.cliporium-pinned-heading {
+    spacing: 2px;
+}
+
+.cliporium-pinned-title {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cliporium-pinned-subtitle {
+    font-size: 11px;
+    opacity: 0.68;
+}
+
+.cliporium-pinned-search-row {
+    padding-top: 6px;
+}
+
+.cliporium-section-title {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.cliporium-status-pill {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background-color: rgba(233, 84, 32, 0.06);
+}
+
+.cliporium-status-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cliporium-dark .cliporium-status-label {
+    color: #ff8a5b;
+}
+
+.cliporium-light .cliporium-status-label {
+    color: #c2410c;
+}
+
+.cliporium-status-warning {
+    background-color: rgba(233, 84, 32, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(233, 84, 32, 0.42);
+}
+
+.cliporium-text-button {
+    padding: 4px 6px;
     border-radius: 6px;
+    background-color: transparent;
+    color: #c2410c;
 }
 
-.cliporium-warning {
-    font-size: 0.9em;
-    opacity: 0.8;
+.cliporium-dark .cliporium-text-button {
+    color: #ff8a5b;
+}
+
+.cliporium-text-button:hover {
+    background-color: rgba(233, 84, 32, 0.12);
+}
+
+.cliporium-button-content {
+    spacing: 4px;
+}
+
+.cliporium-button-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: inherit;
+}
+
+.cliporium-dark .cliporium-text-button .cliporium-button-label {
+    color: #ff8a5b;
+}
+
+.cliporium-light .cliporium-text-button .cliporium-button-label {
+    color: #c2410c;
+}
+
+.cliporium-manage-button .cliporium-button-label {
+    font-weight: 700;
+}
+
+.cliporium-dark .cliporium-clear-button .cliporium-button-label {
+    color: rgba(247, 244, 241, 0.68);
+}
+
+.cliporium-light .cliporium-clear-button .cliporium-button-label {
+    color: rgba(45, 42, 40, 0.68);
+}
+
+.cliporium-clear-button:hover {
+    background-color: rgba(127, 127, 127, 0.12);
+}
+
+.cliporium-icon-button:focus,
+.cliporium-text-button:focus,
+.cliporium-action-button:focus,
+.cliporium-row-action:focus {
+    box-shadow: 0 0 0 2px #e95420;
+}
+
+.cliporium-keycap {
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+}
+
+.cliporium-dark .cliporium-keycap {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.cliporium-light .cliporium-keycap {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.cliporium-keycap-label {
+    font-size: 11px;
+    opacity: 0.68;
+}
+
+.cliporium-confirm {
+    spacing: 7px;
+    padding: 8px 9px;
+    border-radius: 10px;
+    border: 1px solid rgba(233, 84, 32, 0.24);
+}
+
+.cliporium-dark .cliporium-confirm {
+    background-color: rgba(233, 84, 32, 0.08);
+}
+
+.cliporium-light .cliporium-confirm {
+    background-color: rgba(233, 84, 32, 0.07);
+}
+
+.cliporium-dark .cliporium-confirm.cliporium-confirm-danger,
+.cliporium-light .cliporium-confirm.cliporium-confirm-danger {
+    border-color: rgba(224, 27, 36, 0.42);
+    background-color: rgba(224, 27, 36, 0.1);
+}
+
+.cliporium-confirm-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cliporium-confirm-actions {
+    spacing: 5px;
+}
+
+.cliporium-danger-button {
+    background-color: rgba(224, 27, 36, 0.16);
+    color: #ff7b72;
+}
+
+.cliporium-danger-button:hover {
+    background-color: rgba(224, 27, 36, 0.26);
+}
+
+.cliporium-danger-text {
+    color: #ff7b72;
+}
+
+.cliporium-light .cliporium-danger-text,
+.cliporium-light .cliporium-danger-button,
+.cliporium-light .cliporium-action-danger {
+    color: #b3261e;
+}
+
+.cliporium-danger-button .cliporium-button-label,
+.cliporium-danger-text .cliporium-button-label {
+    color: #ff7b72;
+}
+
+.cliporium-light .cliporium-danger-button .cliporium-button-label,
+.cliporium-light .cliporium-danger-text .cliporium-button-label {
+    color: #b3261e;
+}
+
+.cliporium-list-scroll {
+    max-height: 320px;
+}
+
+.cliporium-list {
+    spacing: 4px;
+}
+
+.cliporium-row-wrap {
+    spacing: 0;
+}
+
+.cliporium-row {
+    spacing: 8px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+}
+
+.cliporium-row:hover {
+    background-color: rgba(127, 127, 127, 0.08);
+}
+
+.cliporium-row.cliporium-selected {
+    border-color: rgba(233, 84, 32, 0.28);
+    box-shadow: inset 3px 0 0 0 #e95420;
+}
+
+.cliporium-dark .cliporium-row.cliporium-selected {
+    background-color: rgba(233, 84, 32, 0.14);
+}
+
+.cliporium-light .cliporium-row.cliporium-selected {
+    background-color: rgba(233, 84, 32, 0.1);
+}
+
+.cliporium-row-icon {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 8px;
+}
+
+.cliporium-dark .cliporium-row-icon {
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.cliporium-light .cliporium-row-icon {
+    background-color: rgba(0, 0, 0, 0.055);
+}
+
+.cliporium-row-thumb {
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 8px;
+}
+
+.cliporium-preview {
+    spacing: 8px;
+}
+
+.cliporium-preview-header {
+    spacing: 6px;
+}
+
+.cliporium-preview-title {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cliporium-preview-image {
+    min-height: 220px;
+    border-radius: 10px;
+}
+
+.cliporium-dark .cliporium-preview-image {
+    background-color: rgba(255, 255, 255, 0.045);
+}
+
+.cliporium-light .cliporium-preview-image {
+    background-color: rgba(0, 0, 0, 0.035);
+}
+
+.cliporium-preview-meta {
+    font-size: 11px;
+    opacity: 0.72;
+}
+
+.cliporium-preview-actions {
+    spacing: 4px;
+}
+
+.cliporium-preview-missing {
+    spacing: 8px;
+}
+
+.cliporium-preview-missing-icon {
+    opacity: 0.42;
+}
+
+.cliporium-preview-missing-label {
+    font-size: 11px;
+    opacity: 0.68;
+}
+
+.cliporium-row-content {
+    spacing: 1px;
+}
+
+.cliporium-row-title {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cliporium-row-meta {
+    font-size: 11px;
+    opacity: 0.68;
+}
+
+.cliporium-row-action {
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 6px;
+    background-color: transparent;
+    opacity: 0.52;
+}
+
+.cliporium-dark .cliporium-row-action {
+    color: #f7f4f1;
+}
+
+.cliporium-light .cliporium-row-action {
+    color: #2d2a28;
+}
+
+.cliporium-row-action:hover {
+    background-color: rgba(127, 127, 127, 0.14);
+    opacity: 1;
+}
+
+.cliporium-row-action-pinned {
+    color: #c2410c;
+    opacity: 1;
+}
+
+.cliporium-dark .cliporium-row-action-pinned {
+    color: #ff8a5b;
+}
+
+.cliporium-actions {
+    spacing: 4px;
+    padding: 4px 8px 6px 48px;
+}
+
+.cliporium-action-button {
+    padding: 4px 8px;
+    border-radius: 6px;
+    background-color: rgba(127, 127, 127, 0.07);
+}
+
+.cliporium-dark .cliporium-action-button {
+    color: #f7f4f1;
+}
+
+.cliporium-light .cliporium-action-button {
+    color: #2d2a28;
+}
+
+.cliporium-action-button:hover {
+    background-color: rgba(127, 127, 127, 0.14);
+}
+
+.cliporium-action-content {
+    spacing: 4px;
+}
+
+.cliporium-action-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cliporium-action-danger {
+    color: #ff7b72;
+}
+
+.cliporium-action-danger .cliporium-action-label {
+    color: #ff7b72;
+}
+
+.cliporium-light .cliporium-action-danger .cliporium-action-label {
+    color: #b3261e;
+}
+
+.cliporium-empty {
+    spacing: 8px;
+    padding: 24px 10px;
+}
+
+.cliporium-empty-icon {
+    opacity: 0.38;
+}
+
+.cliporium-empty-label {
+    font-size: 11px;
+    opacity: 0.68;
+}
+
+.cliporium-notice {
+    spacing: 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.1);
+}
+
+.cliporium-notice-warning {
+    background-color: rgba(233, 84, 32, 0.13);
+}
+
+.cliporium-notice-icon {
+    color: #c2410c;
+}
+
+.cliporium-dark .cliporium-notice-icon {
+    color: #ff8a5b;
+}
+
+.cliporium-notice-label {
+    font-size: 11px;
+}
+
+.cliporium-notice-dismiss {
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 5px;
+    background-color: transparent;
+    opacity: 0.6;
+}
+
+.cliporium-notice-dismiss:hover {
+    opacity: 1;
+    background-color: rgba(127, 127, 127, 0.14);
 }
 
 .cliporium-footer {
-    opacity: 0.65;
-    font-size: 0.85em;
+    spacing: 12px;
+    padding: 8px 2px 0;
+    border-top: 1px solid rgba(127, 127, 127, 0.18);
+}
+
+.cliporium-footer-count {
+    font-size: 11px;
+    opacity: 0.72;
+}
+
+.cliporium-footer-hints {
+    spacing: 12px;
+}
+
+.cliporium-footer-item {
+    spacing: 4px;
+    opacity: 0.68;
+}
+
+.cliporium-footer-label {
+    font-size: 11px;
 }
 
 .cliporium-indicator-hidden {

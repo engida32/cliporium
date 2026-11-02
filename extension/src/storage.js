@@ -5,10 +5,11 @@ const HISTORY_FILE = 'history.json';
 
 export class HistoryStorage {
     constructor({history, onLoaded = () => {}, onWarning = () => {},
-        onError = () => {}, onSaved = () => {},
+        onError = () => {}, onSaved = () => {}, imageStore = null,
         dataHome = GLib.get_user_data_dir(),
         retryDelayMs = 5000}) {
         this._history = history;
+        this._imageStore = imageStore;
         this._onLoaded = onLoaded;
         this._onWarning = onWarning;
         this._onError = onError;
@@ -75,15 +76,23 @@ export class HistoryStorage {
             }
 
             try {
-                const {dropped, pinnedDropped} = this._history.load(raw);
+                const {dropped, pinnedDropped, pinnedOverLimit} =
+                    this._history.load(raw);
+                const {missing, orphaned} = this._reconcileImages();
                 this._finishLoad();
-                const skipped = [];
+                const notices = [];
                 if (dropped > 0)
-                    skipped.push(`${dropped} invalid or duplicate item(s)`);
+                    notices.push(`${dropped} invalid or duplicate item(s) were skipped`);
                 if (pinnedDropped > 0)
-                    skipped.push(`${pinnedDropped} pinned item(s) over the ${this._history.maxPinned} limit`);
-                if (skipped.length > 0) {
-                    this._onWarning(`${skipped.join(' and ')} were skipped.`);
+                    notices.push(`${pinnedDropped} pinned item(s) over the ${this._history.maxPinned} limit were skipped`);
+                if (pinnedOverLimit > 0)
+                    notices.push(`${pinnedOverLimit} pinned item(s) exceed the current size limit and were kept`);
+                if (missing > 0)
+                    notices.push(`${missing} missing image(s) were skipped`);
+                if (orphaned > 0)
+                    notices.push(`${orphaned} unreferenced image(s) were removed`);
+                if (notices.length > 0) {
+                    this._onWarning(`${notices.join('. ')}.`);
                     this.scheduleSave();
                 }
             } catch {
@@ -129,6 +138,33 @@ export class HistoryStorage {
                 return GLib.SOURCE_REMOVE;
             }
         );
+    }
+
+    _reconcileImages() {
+        if (!this._imageStore)
+            return {missing: 0, orphaned: 0};
+
+        let missing = 0;
+        const referenced = new Set();
+        for (const item of this._history.getItems()) {
+            if (item.kind !== 'image')
+                continue;
+            if (!this._imageStore.exists(item.blob_path)) {
+                this._history.delete(item.id);
+                missing += 1;
+            } else {
+                referenced.add(item.blob_path);
+            }
+        }
+
+        let orphaned = 0;
+        for (const blobPath of this._imageStore.list()) {
+            if (referenced.has(blobPath))
+                continue;
+            if (this._imageStore.delete(blobPath))
+                orphaned += 1;
+        }
+        return {missing, orphaned};
     }
 
     _finishLoad() {
@@ -199,6 +235,8 @@ export class HistoryStorage {
                     if (!ok)
                         throw new Error('history file could not be written');
                     GLib.chmod(this._path, 0o600);
+                    if (this._imageStore)
+                        this._imageStore.deleteMany(this._history.drainRemovedBlobs());
                     if (!this._destroyed)
                         this._onSaved();
                 } catch (error) {

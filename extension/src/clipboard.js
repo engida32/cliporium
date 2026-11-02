@@ -1,5 +1,6 @@
 import GLib from 'gi://GLib';
-import St from 'gi://St';
+
+import {IMAGE_MIMES} from './image-utils.js';
 
 const TEXT_MIMES = [
     'text/plain;charset=utf-8',
@@ -10,8 +11,11 @@ const TEXT_MIMES = [
 const READ_TIMEOUT_MS = 500;
 
 export class ClipboardReader {
-    constructor() {
-        this._clipboard = St.Clipboard.get_default();
+    constructor(clipboard, clipboardType = 1) {
+        if (!clipboard)
+            throw new Error('clipboard is required');
+        this._clipboard = clipboard;
+        this._clipboardType = clipboardType;
     }
 
     async readText(maxBytes) {
@@ -22,10 +26,36 @@ export class ClipboardReader {
                 tooLarge = true;
                 continue;
             }
-            if (result.text)
-                return {text: result.text, tooLarge: false};
+            if (result.bytes) {
+                try {
+                    const text = new TextDecoder('utf-8', {fatal: true})
+                        .decode(result.bytes.get_data());
+                    return {text, tooLarge: false};
+                } catch {
+                    continue;
+                }
+            }
         }
         return {text: null, tooLarge};
+    }
+
+    async readImage(maxBytes) {
+        let tooLarge = false;
+        for (const mime of IMAGE_MIMES) {
+            const result = await this._readMime(mime, maxBytes);
+            if (result.tooLarge) {
+                tooLarge = true;
+                continue;
+            }
+            if (result.bytes) {
+                return {
+                    bytes: result.bytes,
+                    mime,
+                    tooLarge: false,
+                };
+            }
+        }
+        return {bytes: null, mime: null, tooLarge};
     }
 
     _readMime(mime, maxBytes) {
@@ -49,18 +79,18 @@ export class ClipboardReader {
                 READ_TIMEOUT_MS,
                 () => {
                     timeoutId = 0;
-                    finish({text: null, tooLarge: false});
+                    finish({bytes: null, tooLarge: false});
                     return GLib.SOURCE_REMOVE;
                 }
             );
 
             try {
                 this._clipboard.get_content(
-                    St.ClipboardType.CLIPBOARD,
+                    this._clipboardType,
                     mime,
                     (_clipboard, bytes) => {
                         if (settled || !bytes) {
-                            finish({text: null, tooLarge: false});
+                            finish({bytes: null, tooLarge: false});
                             return;
                         }
 
@@ -68,34 +98,34 @@ export class ClipboardReader {
                             const size = bytes.get_size();
                             if (typeof size === 'bigint') {
                                 if (size > BigInt(maxBytes)) {
-                                    finish({text: null, tooLarge: true});
+                                    finish({bytes: null, tooLarge: true});
                                     return;
                                 }
                             } else if (!Number.isFinite(size) || size > maxBytes) {
-                                finish({text: null, tooLarge: true});
+                                finish({bytes: null, tooLarge: true});
                                 return;
                             }
                             if (size <= 0) {
-                                finish({text: null, tooLarge: false});
+                                finish({bytes: null, tooLarge: false});
                                 return;
                             }
 
                             const data = bytes.get_data();
                             if (!data || data.length === 0) {
-                                finish({text: null, tooLarge: false});
+                                finish({bytes: null, tooLarge: false});
                                 return;
                             }
                             finish({
-                                text: new TextDecoder().decode(data),
+                                bytes: GLib.Bytes.new(data.slice()),
                                 tooLarge: false,
                             });
                         } catch {
-                            finish({text: null, tooLarge: false});
+                            finish({bytes: null, tooLarge: false});
                         }
                     }
                 );
             } catch {
-                finish({text: null, tooLarge: false});
+                finish({bytes: null, tooLarge: false});
             }
         });
     }

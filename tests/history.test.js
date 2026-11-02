@@ -140,4 +140,130 @@ assert(!loadedPins.getItems().some(item => item.text === 'pinned-0'),
 assert(loadedPins.getItems().some(item => item.text === `pinned-${MAX_PINNED_ITEMS + 1}`),
     'newest pinned item is kept');
 
+
+const imageHistory = new History({
+    limit: 10,
+    maxBytes: 1024,
+    maxImageBytes: 4096,
+    retentionDays: 0,
+});
+const imageA = {
+    sha256: 'a'.repeat(64),
+    mime: 'image/png',
+    byte_size: 512,
+    blob_path: `images/${'a'.repeat(64)}.png`,
+    width: 64,
+    height: 48,
+};
+let imageResult = imageHistory.captureImage(imageA, 'app-one', base + 1000);
+assert(imageResult.added, 'first image is added');
+assertEqual(imageResult.item.kind, 'image', 'image kind is stored');
+assertEqual(imageResult.item.text, '', 'image has no text payload');
+assertEqual(imageResult.item.preview, 'Image', 'image preview is set');
+assertEqual(imageResult.item.width, 64, 'image width is stored');
+assertEqual(imageResult.item.height, 48, 'image height is stored');
+assertEqual(imageHistory.getItems('png').length, 1, 'search matches image mime');
+
+imageResult = imageHistory.captureImage(imageA, 'app-two', base + 2000);
+assertEqual(imageResult.reason, 'duplicate', 'duplicate image is detected');
+assertEqual(imageHistory.size, 1, 'duplicate image does not add an item');
+assertEqual(imageHistory.getItem(imageResult.item.id).source_app, 'app-two',
+    'duplicate image refreshes metadata');
+
+assertEqual(imageHistory.captureImage({...imageA, sha256: 'b'.repeat(64),
+    blob_path: `images/${'b'.repeat(64)}.png`, byte_size: 4097},
+'app', base + 3000).reason, 'too-large', 'oversized image is skipped');
+assertEqual(imageHistory.captureImage({...imageA, mime: 'text/plain'},
+    'app', base + 3000).reason, 'invalid', 'non-image mime is skipped');
+assertEqual(imageHistory.captureImage({...imageA, blob_path: ''},
+    'app', base + 3000).reason, 'invalid', 'image without a blob path is skipped');
+assertEqual(imageHistory.captureImage({...imageA, sha256: 'nope'},
+    'app', base + 3000).reason, 'invalid', 'image without a hash is skipped');
+
+const imageId = imageHistory.getItems()[0].id;
+assert(imageHistory.setPinned(imageId, true), 'image can be pinned');
+assert(imageHistory.delete(imageId), 'image can be deleted');
+assertEqual(imageHistory.drainRemovedBlobs().length, 1,
+    'deleting an image queues its blob for cleanup');
+
+const loadedImages = new History({
+    limit: 10,
+    maxBytes: 1024,
+    maxImageBytes: 4096,
+    retentionDays: 0,
+});
+loadedImages.load({
+    version: 2,
+    items: [{
+        id: 'loaded-image',
+        kind: 'image',
+        mime: 'image/png',
+        byte_size: 100,
+        blob_path: `images/${'c'.repeat(64)}.png`,
+        sha256: 'c'.repeat(64),
+        width: 10,
+        height: 20,
+        created_at: base + 1000,
+        preview: 'Image',
+    }],
+});
+assertEqual(loadedImages.size, 1, 'version 2 image items load');
+assertEqual(loadedImages.getItems()[0].kind, 'image', 'loaded image keeps its kind');
+assertEqual(loadedImages.getItems()[0].width, 10, 'loaded image keeps its width');
+
+const oversizedPins = new History({
+    limit: 10,
+    maxBytes: 4,
+    maxImageBytes: 8,
+    retentionDays: 0,
+});
+const oversizedPinLoad = oversizedPins.load({
+    version: 2,
+    items: [
+        {
+            id: 'oversized-pinned-text',
+            kind: 'text',
+            text: 'pinned text',
+            created_at: base + 1000,
+            pinned: true,
+        },
+        {
+            id: 'oversized-pinned-image',
+            kind: 'image',
+            mime: 'image/png',
+            byte_size: 100,
+            blob_path: `images/${'f'.repeat(64)}.png`,
+            sha256: 'f'.repeat(64),
+            width: 10,
+            height: 20,
+            created_at: base + 2000,
+            pinned: true,
+        },
+    ],
+});
+assertEqual(oversizedPins.size, 2,
+    'oversized pinned items are preserved on load');
+assertEqual(oversizedPinLoad.dropped, 0,
+    'preserved oversized pins are not counted as dropped');
+assertEqual(oversizedPinLoad.pinnedOverLimit, 2,
+    'oversized pinned items are reported separately');
+assert(oversizedPins.getItems().every(item => item.pinned),
+    'oversized loaded items stay pinned');
+
+const pruneImages = new History({
+    limit: 1,
+    maxBytes: 1024,
+    maxImageBytes: 4096,
+    retentionDays: 0,
+});
+pruneImages.captureText('text', '', base + 1000);
+pruneImages.captureImage({...imageA}, '', base + 2000);
+pruneImages.captureImage({...imageA, sha256: 'd'.repeat(64),
+    blob_path: `images/${'d'.repeat(64)}.png`}, '', base + 3000);
+assertEqual(pruneImages.size, 1, 'image history limit is enforced');
+assertEqual(pruneImages.drainRemovedBlobs().length, 1,
+    'pruning an image queues its blob for cleanup');
+
+assertEqual(loadedImages.toJSON().version, 2, 'history serializes as version 2');
+
 print('history tests passed');
