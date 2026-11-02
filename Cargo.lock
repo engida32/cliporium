@@ -84,8 +84,11 @@ dependencies = [
  "clip-core",
  "clip-store",
  "rusqlite",
+ "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]

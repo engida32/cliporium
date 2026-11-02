@@ -8,11 +8,18 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "cliporium-backup"
+path = "src/bin/cliporium-backup.rs"
+
 [dependencies]
+clip-core = { path = "../clip-core" }
 rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
-clip-core = { path = "../clip-core" }
 clip-store = { path = "../clip-store" }
 tempfile.workspace = true

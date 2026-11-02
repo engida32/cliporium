@@ -2,13 +2,21 @@ mod legacy;
 
 use clip_core::{
     ClipItem, ItemKind, NewImageCapture, NewTextCapture, blob_absolute_path, blob_relative_path,
-    now_unix, sha256_hex, text_preview,
+    blob_root, now_unix, sha256_hex, text_preview,
 };
 pub use legacy::{LegacyEntry, parse_registry};
 use rusqlite::{Connection, OptionalExtension, Row, params};
-use std::fs;
+use std::collections::HashSet;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+
+const SCHEMA_VERSION: i64 = 1;
+const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+const JPEG_SIGNATURE: &[u8] = &[0xFF, 0xD8, 0xFF];
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS items (
@@ -48,8 +56,6 @@ CREATE TRIGGER IF NOT EXISTS items_au AFTER UPDATE OF text ON items BEGIN
     INSERT INTO items_fts (items_fts, rowid, text) VALUES ('delete', old.id, old.text);
     INSERT INTO items_fts (rowid, text) VALUES (new.id, new.text);
 END;
-
-PRAGMA user_version = 1;
 "#;
 
 const ITEM_COLUMNS: &str = "id, uuid, kind, text, preview, sha256, byte_size, created_at, pinned, source_app, blob_path, mime";
@@ -57,6 +63,16 @@ const ITEM_COLUMNS: &str = "id, uuid, kind, text, preview, sha256, byte_size, cr
 const QUALIFIED_ITEM_COLUMNS: &str = "items.id, items.uuid, items.kind, items.text, items.preview, \
     items.sha256, items.byte_size, items.created_at, items.pinned, items.source_app, \
     items.blob_path, items.mime";
+
+pub const MAX_TEXT_BYTES: usize = 64 * 1024;
+pub const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ReconcileReport {
+    pub removed_files: usize,
+    pub removed_dirs: usize,
+    pub kept_files: usize,
+}
 
 #[derive(Debug, Error)]
 pub enum StoreError {
@@ -68,6 +84,10 @@ pub enum StoreError {
     InvalidInput(String),
     #[error("clipboard item not found: {0}")]
     NotFound(String),
+    #[error("unsupported schema version {found}; this build supports {supported}")]
+    UnsupportedSchema { found: i64, supported: i64 },
+    #[error("database failed quick_check: {0}")]
+    CorruptDatabase(String),
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;
@@ -82,16 +102,30 @@ impl Store {
         let path = path.as_ref();
         let data_dir = path
             .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
             .map(Path::to_path_buf)
             .unwrap_or_else(|| PathBuf::from("."));
-        fs::create_dir_all(clip_core::blob_root(&data_dir))?;
+        if data_dir != Path::new(".") {
+            ensure_private_dir(&data_dir)?;
+        }
+        ensure_private_dir(&blob_root(&data_dir))?;
+        create_private_database_file(path)?;
+        set_private_file(path)?;
+
         let connection = Connection::open(path)?;
         Self::configure(&connection)?;
         let store = Self {
             connection,
             data_dir,
         };
+        store.harden_database_files(path)?;
+        let check = store.quick_check()?;
+        if check != "ok" {
+            return Err(StoreError::CorruptDatabase(check));
+        }
         store.migrate()?;
+        store.harden_database_files(path)?;
+        store.reconcile_blobs()?;
         Ok(store)
     }
 
@@ -99,7 +133,8 @@ impl Store {
         let data_dir = std::env::temp_dir()
             .join("cliporium-tests")
             .join(uuid::Uuid::new_v4().to_string());
-        fs::create_dir_all(clip_core::blob_root(&data_dir))?;
+        ensure_private_dir(&data_dir)?;
+        ensure_private_dir(&blob_root(&data_dir))?;
         let connection = Connection::open_in_memory()?;
         Self::configure(&connection)?;
         let store = Self {
@@ -121,7 +156,30 @@ impl Store {
     }
 
     fn migrate(&self) -> Result<()> {
-        self.connection.execute_batch(SCHEMA)?;
+        let version: i64 = self
+            .connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if version > SCHEMA_VERSION {
+            return Err(StoreError::UnsupportedSchema {
+                found: version,
+                supported: SCHEMA_VERSION,
+            });
+        }
+        if version < SCHEMA_VERSION {
+            self.connection.execute_batch(SCHEMA)?;
+            self.connection
+                .execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION};"))?;
+        }
+        Ok(())
+    }
+
+    fn harden_database_files(&self, path: &Path) -> Result<()> {
+        for suffix in ["", "-wal", "-shm", "-journal"] {
+            let candidate = with_suffix(path, suffix);
+            if candidate.exists() {
+                set_private_file(&candidate)?;
+            }
+        }
         Ok(())
     }
 
@@ -138,6 +196,11 @@ impl Store {
             return Err(StoreError::InvalidInput(
                 "text capture cannot be empty".to_string(),
             ));
+        }
+        if capture.text.len() > MAX_TEXT_BYTES {
+            return Err(StoreError::InvalidInput(format!(
+                "text capture exceeds {MAX_TEXT_BYTES} bytes"
+            )));
         }
         let sha256 = sha256_hex(capture.text.as_bytes());
         let preview = text_preview(capture.text);
@@ -157,10 +220,15 @@ impl Store {
     }
 
     pub fn capture_image(&self, capture: NewImageCapture<'_>) -> Result<ClipItem> {
-        if !capture.mime.starts_with("image/") {
+        if !matches!(capture.mime, "image/png" | "image/jpeg") {
             return Err(StoreError::InvalidInput(format!(
                 "unsupported image mime type: {}",
                 capture.mime
+            )));
+        }
+        if capture.bytes.len() > MAX_IMAGE_BYTES {
+            return Err(StoreError::InvalidInput(format!(
+                "image capture exceeds {MAX_IMAGE_BYTES} bytes"
             )));
         }
         if capture.bytes.is_empty() {
@@ -168,17 +236,48 @@ impl Store {
                 "image capture cannot be empty".to_string(),
             ));
         }
+        if !image_matches_mime(capture.mime, capture.bytes) {
+            return Err(StoreError::InvalidInput(format!(
+                "image bytes do not match mime type {}",
+                capture.mime
+            )));
+        }
 
         let sha256 = sha256_hex(capture.bytes);
         let relative = blob_relative_path(&sha256);
         let absolute = blob_absolute_path(&self.data_dir, &sha256);
         if !absolute.exists() {
-            if let Some(parent) = absolute.parent() {
-                fs::create_dir_all(parent)?;
-            }
+            let root = blob_root(&self.data_dir);
+            ensure_private_dir(&root)?;
+            ensure_private_dir(&root.join("sha256"))?;
+            let Some(parent) = absolute.parent() else {
+                return Err(StoreError::Io(std::io::Error::other(
+                    "blob path has no parent",
+                )));
+            };
+            ensure_private_dir(parent)?;
             let temporary = absolute.with_extension(format!("tmp-{}", uuid::Uuid::new_v4()));
-            fs::write(&temporary, capture.bytes)?;
-            fs::rename(&temporary, &absolute)?;
+            let write_result = (|| -> std::io::Result<()> {
+                let mut options = OpenOptions::new();
+                options.write(true).create_new(true);
+                #[cfg(unix)]
+                options.mode(0o600);
+                let mut file = options.open(&temporary)?;
+                file.write_all(capture.bytes)?;
+                file.sync_all()?;
+                Ok(())
+            })();
+            if let Err(error) = write_result {
+                let _ = fs::remove_file(&temporary);
+                return Err(error.into());
+            }
+            if let Err(error) = fs::rename(&temporary, &absolute) {
+                let _ = fs::remove_file(&temporary);
+                return Err(error.into());
+            }
+            sync_directory(parent)?;
+        } else {
+            set_private_file(&absolute)?;
         }
 
         let preview = format!("{} · {} bytes", capture.mime, capture.bytes.len());
@@ -307,15 +406,35 @@ impl Store {
             })
             .optional()?
             .ok_or_else(|| StoreError::NotFound(id.to_string()))?;
-        self.connection
-            .execute("DELETE FROM items WHERE uuid = ?1", [id])?;
-        if let Some(relative) = blob_path {
-            let path = self.data_dir.join("blobs").join(relative);
-            if path.exists() {
-                fs::remove_file(path)?;
+        let path = blob_path.map(|relative| self.data_dir.join("blobs").join(relative));
+        let mut trash = None;
+        if let Some(path) = &path
+            && path.exists()
+        {
+            let trash_path = path.with_extension(format!("delete-{}", uuid::Uuid::new_v4()));
+            fs::rename(path, &trash_path)?;
+            trash = Some(trash_path);
+        }
+
+        match self
+            .connection
+            .execute("DELETE FROM items WHERE uuid = ?1", [id])
+        {
+            Ok(0) => {
+                restore_blob(trash.as_deref(), path.as_deref());
+                Err(StoreError::NotFound(id.to_string()))
+            }
+            Ok(_) => {
+                if let Some(trash_path) = trash.take() {
+                    let _ = fs::remove_file(trash_path);
+                }
+                Ok(())
+            }
+            Err(error) => {
+                restore_blob(trash.as_deref(), path.as_deref());
+                Err(error.into())
             }
         }
-        Ok(())
     }
 
     pub fn read_blob(&self, id: &str) -> Result<Vec<u8>> {
@@ -342,6 +461,118 @@ impl Store {
             .query_row("PRAGMA integrity_check", [], |row| row.get(0))
             .map_err(StoreError::from)
     }
+
+    pub fn quick_check(&self) -> Result<String> {
+        self.connection
+            .query_row("PRAGMA quick_check", [], |row| row.get(0))
+            .map_err(StoreError::from)
+    }
+
+    pub fn reconcile_blobs(&self) -> Result<ReconcileReport> {
+        let root = blob_root(&self.data_dir);
+        if !root.exists() {
+            return Ok(ReconcileReport::default());
+        }
+        let mut statement = self
+            .connection
+            .prepare("SELECT blob_path FROM items WHERE blob_path IS NOT NULL")?;
+        let referenced = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<HashSet<String>>>()?;
+        let referenced = referenced
+            .into_iter()
+            .map(PathBuf::from)
+            .collect::<HashSet<_>>();
+        let mut report = ReconcileReport::default();
+        reconcile_directory(&root, &root, &referenced, &mut report)?;
+        Ok(report)
+    }
+}
+
+fn restore_blob(trash: Option<&Path>, path: Option<&Path>) {
+    if let (Some(trash), Some(path)) = (trash, path) {
+        let _ = fs::rename(trash, path);
+    }
+}
+
+fn reconcile_directory(
+    root: &Path,
+    directory: &Path,
+    referenced: &HashSet<PathBuf>,
+    report: &mut ReconcileReport,
+) -> Result<()> {
+    let mut entries = fs::read_dir(directory)?.collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            reconcile_directory(root, &path, referenced, report)?;
+            if fs::read_dir(&path)?.next().is_none() {
+                fs::remove_dir(&path)?;
+                report.removed_dirs += 1;
+            }
+            continue;
+        }
+        let relative = path
+            .strip_prefix(root)
+            .map(Path::to_path_buf)
+            .unwrap_or(path.clone());
+        if referenced.contains(&relative) {
+            report.kept_files += 1;
+        } else {
+            fs::remove_file(&path)?;
+            report.removed_files += 1;
+        }
+    }
+    Ok(())
+}
+
+fn image_matches_mime(mime: &str, bytes: &[u8]) -> bool {
+    match mime {
+        "image/png" => bytes.starts_with(PNG_SIGNATURE),
+        "image/jpeg" => bytes.starts_with(JPEG_SIGNATURE),
+        _ => false,
+    }
+}
+
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut value = path.as_os_str().to_os_string();
+    value.push(suffix);
+    PathBuf::from(value)
+}
+
+fn create_private_database_file(path: &Path) -> Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    match options.open(path) {
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn ensure_private_dir(path: &Path) -> Result<()> {
+    fs::create_dir_all(path)?;
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+    Ok(())
+}
+
+fn set_private_file(path: &Path) -> Result<()> {
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
+fn sync_directory(path: &Path) -> Result<()> {
+    #[cfg(unix)]
+    File::open(path)?.sync_all()?;
+    Ok(())
 }
 
 fn row_to_item(row: &Row<'_>) -> rusqlite::Result<ClipItem> {
@@ -469,5 +700,198 @@ mod tests {
     fn integrity_check_passes() {
         let store = text_store();
         assert_eq!(store.integrity_check().expect("integrity"), "ok");
+    }
+
+    #[test]
+    fn quick_check_reports_healthy_database() {
+        let store = text_store();
+        assert_eq!(store.quick_check().expect("quick check"), "ok");
+    }
+
+    #[test]
+    fn open_rejects_newer_schema_version() {
+        let temporary = tempfile::tempdir().expect("tempdir");
+        let data_dir = temporary.path().join("data");
+        fs::create_dir_all(&data_dir).expect("data dir");
+        let path = data_dir.join("cliporium.sqlite3");
+        let connection = Connection::open(&path).expect("connection");
+        connection
+            .execute_batch("PRAGMA user_version = 2;")
+            .expect("set version");
+        drop(connection);
+
+        let error = match Store::open(&path) {
+            Ok(_) => panic!("newer schema must be rejected"),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            error,
+            StoreError::UnsupportedSchema {
+                found: 2,
+                supported: 1
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_oversized_text() {
+        let store = text_store();
+        let text = "a".repeat(MAX_TEXT_BYTES + 1);
+        let error = store
+            .capture_text(NewTextCapture {
+                text: &text,
+                source_app: None,
+            })
+            .expect_err("oversized text must be rejected");
+        assert!(matches!(error, StoreError::InvalidInput(_)));
+        assert_eq!(store.count().expect("count"), 0);
+    }
+
+    #[test]
+    fn rejects_oversized_image() {
+        let store = text_store();
+        let bytes = vec![0_u8; MAX_IMAGE_BYTES + 1];
+        let error = store
+            .capture_image(NewImageCapture {
+                mime: "image/png",
+                bytes: &bytes,
+                source_app: None,
+            })
+            .expect_err("oversized image must be rejected");
+        assert!(matches!(error, StoreError::InvalidInput(_)));
+        assert_eq!(store.count().expect("count"), 0);
+    }
+
+    #[test]
+    fn rejects_unsupported_image_mime() {
+        let store = text_store();
+        let bytes = b"\x89PNG\r\n\x1a\nnot-really-a-gif";
+        let error = store
+            .capture_image(NewImageCapture {
+                mime: "image/gif",
+                bytes,
+                source_app: None,
+            })
+            .expect_err("unsupported mime must be rejected");
+        assert!(matches!(error, StoreError::InvalidInput(_)));
+        assert_eq!(store.count().expect("count"), 0);
+    }
+
+    #[test]
+    fn rejects_image_bytes_that_do_not_match_mime() {
+        let store = text_store();
+        let bytes = b"not a png payload";
+        let error = store
+            .capture_image(NewImageCapture {
+                mime: "image/png",
+                bytes,
+                source_app: None,
+            })
+            .expect_err("mismatched image bytes must be rejected");
+        assert!(matches!(error, StoreError::InvalidInput(_)));
+        assert_eq!(store.count().expect("count"), 0);
+    }
+
+    #[test]
+    fn reconcile_removes_orphaned_files_but_keeps_referenced_blobs() {
+        let temporary = tempfile::tempdir().expect("tempdir");
+        let store = Store::open(temporary.path().join("data/cliporium.sqlite3")).expect("store");
+        let item = store
+            .capture_image(NewImageCapture {
+                mime: "image/png",
+                bytes: b"\x89PNG\r\n\x1a\nreconcile-image",
+                source_app: None,
+            })
+            .expect("image capture");
+        let blob = store
+            .data_dir()
+            .join("blobs")
+            .join(item.blob_path.as_ref().expect("blob path"));
+
+        let orphan_dir = store.data_dir().join("blobs/sha256/zz");
+        fs::create_dir_all(&orphan_dir).expect("orphan dir");
+        let orphan = orphan_dir.join("orphan.bin");
+        fs::write(&orphan, b"orphan").expect("orphan file");
+        let temporary_blob = orphan_dir.join(".tmp-leftover");
+        fs::write(&temporary_blob, b"leftover").expect("temporary file");
+
+        let report = store.reconcile_blobs().expect("reconcile");
+        assert!(!orphan.exists(), "orphaned blob must be removed");
+        assert!(!temporary_blob.exists(), "temporary blob must be removed");
+        assert!(blob.exists(), "referenced blob must be kept");
+        assert_eq!(report.kept_files, 1);
+        assert!(report.removed_files >= 2);
+        assert!(
+            !orphan_dir.exists(),
+            "empty orphan directory must be removed"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_store_uses_private_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        fn mode(path: &Path) -> u32 {
+            fs::metadata(path).expect("metadata").permissions().mode() & 0o777
+        }
+
+        let temporary = tempfile::tempdir().expect("tempdir");
+        let data_dir = temporary.path().join("data");
+        let store = Store::open(data_dir.join("cliporium.sqlite3")).expect("store");
+        let item = store
+            .capture_image(NewImageCapture {
+                mime: "image/png",
+                bytes: b"\x89PNG\r\n\x1a\nprivate-image",
+                source_app: None,
+            })
+            .expect("image capture");
+        let blob = store
+            .data_dir()
+            .join("blobs")
+            .join(item.blob_path.as_ref().expect("blob path"));
+
+        assert_eq!(mode(store.data_dir()), 0o700);
+        assert_eq!(mode(&data_dir.join("blobs")), 0o700);
+        assert_eq!(mode(&data_dir.join("cliporium.sqlite3")), 0o600);
+        assert_eq!(mode(blob.parent().expect("blob parent")), 0o700);
+        assert_eq!(mode(&blob), 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn delete_keeps_row_when_blob_removal_fails() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().expect("tempdir");
+        let store = Store::open(temporary.path().join("data/cliporium.sqlite3")).expect("store");
+        let item = store
+            .capture_image(NewImageCapture {
+                mime: "image/png",
+                bytes: b"\x89PNG\r\n\x1a\ndelete-image",
+                source_app: None,
+            })
+            .expect("image capture");
+        let blob = store
+            .data_dir()
+            .join("blobs")
+            .join(item.blob_path.as_ref().expect("blob path"));
+        let parent = blob.parent().expect("blob parent");
+        let original = fs::metadata(parent).expect("metadata").permissions().mode();
+
+        fs::set_permissions(parent, fs::Permissions::from_mode(0o500))
+            .expect("make blob directory read-only");
+        let result = store.delete(&item.id);
+        fs::set_permissions(parent, fs::Permissions::from_mode(original))
+            .expect("restore blob directory permissions");
+
+        assert!(
+            result.is_err(),
+            "delete must fail when the blob cannot move"
+        );
+        assert!(
+            store.get(&item.id).expect("get").is_some(),
+            "the row must survive a failed blob removal"
+        );
     }
 }
