@@ -42,7 +42,7 @@ Run these before opening a pull request:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 dbus-run-session -- cargo test --workspace
-gnome-extensions pack --force --out-dir dist extension
+make pack
 ```
 
 Keep clipboard data, databases, blobs, and secrets out of commits.

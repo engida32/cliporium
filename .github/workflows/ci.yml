@@ -67,13 +67,7 @@ jobs:
       - name: Benchmark history model
         run: gjs -m tests/bench_history.js
       - name: Pack
-        run: |
-          mkdir -p dist
-          gnome-extensions pack --force \
-            --extra-source=src \
-            --extra-source=LICENSE \
-            --schema=schemas/org.gnome.shell.extensions.cliporium.gschema.xml \
-            --out-dir=dist extension
+        run: make pack
       - name: Inspect package
         run: |
           pack="dist/cliporium@engida32.github.io.shell-extension.zip"
