@@ -21,8 +21,8 @@ Status values:
 | Avoid duplicate consecutive entries | Met | `extension/src/history.js:102` moves an existing match to the top and refreshes its metadata. `tests/history.test.js` covers the duplicate path. |
 | Configurable history limit | Met | Schema key `history-limit`; `extension/src/history.js:192` applies the limit. |
 | Pause or private mode | Met | `extension/extension.js:279` and `extension/extension.js:288` block capture. Headless private-mode run stored nothing and kept the Shell alive. |
-| Read failures must not crash | Met | `extension/src/clipboard.js:17` catches read and timeout failures; the headless capture runs kept the Shell alive. |
-| Images only after testing | Not implemented | Text only. This is allowed by the standard. |
+| Read failures must not crash | Met | `extension/src/clipboard.js` catches read and timeout failures and copies clipboard bytes out of the callback before the source is released. After the fix, live text and image captures completed without a Shell crash. |
+| Images only after testing | Partial | `extension/src/clipboard.js` reads `image/png` and `image/jpeg`; `extension/src/history.js` stores image metadata and `extension/src/image-store.js` writes content-addressed files. Unit tests and `tests/headless-image-probe.sh` cover the model, rendering, search, and copy payload. A live image copy crashed the Shell before the callback-bytes copy fix; live capture is still open. |
 | Content-size limit | Met | Schema key `max-content-size`; `extension/src/clipboard.js:71` rejects oversized data. A 3 KB copy against a 1 KB limit stored nothing and the Shell stayed alive. |
 | Application exclusions | Not implemented | Optional. |
 | No capture in private mode | Met | Headless private-mode run. |
@@ -35,7 +35,8 @@ Status values:
 | Compact layout | Met | `extension/stylesheet.css` sets a 420 px width. |
 | Focus search immediately | Met | `extension/extension.js:155` focuses the entry 50 ms after open. AT-SPI showed a focused text node. |
 | Newest first | Met | `extension/src/history.js:163` sorts pinned first and newest first. AT-SPI order was gamma, delta, beta, alpha. |
-| Small content-type icons | Met | `extension/extension.js:371` uses a symbolic text icon. |
+| Small content-type icons | Met | Text rows use a symbolic content icon; image rows use a real thumbnail through `St.TextureCache`. |
+| Image preview | Met | Clicking an image row or thumbnail opens a preview with Copy image, Open image, Pin image, and Close preview. Escape closes the preview before the popup. The preview shows the image at up to 360 × 260 with aspect preservation, and falls back to an unavailable state when the blob is missing. |
 | Distinguish pinned | Met | `extension/extension.js:373` sets a DOT ornament; labels add `Pinned`. AT-SPI showed `gamma sample · Pinned`. |
 | Useful empty state | Met | `extension/extension.js:404` shows a no-items message and a query-specific no-match message. |
 | Light and dark appearance | Met | Uses St theme colours and `rgba()` selection styling; no hard-coded light-only backgrounds. |
@@ -73,8 +74,8 @@ Status values:
 | Private mode | Met | `extension/prefs.js:35`. |
 | Capture enabled/disabled | Met | `extension/prefs.js:27`. |
 | User-configurable shortcut | Met | `extension/prefs.js:100` shows the shortcut; `:199` validates it; the default is an empty list. |
-| Image storage toggle if images supported | Not implemented | Images are not supported. |
-| Maximum content size | Met | `extension/prefs.js:54`, stored in KiB and converted to bytes. |
+| Image storage toggle if images supported | Not implemented | Images are captured; there is no separate image-only capture toggle. The standard makes this optional. |
+| Maximum content size | Met | `max-content-size` for text and `max-image-size` for images, both exposed in preferences. |
 | Retention | Met | `extension/prefs.js:67`; `extension/src/history.js:183` applies it. |
 | Application exclusions if supported | Not implemented | Optional. |
 | Panel indicator visibility | Met | `extension/prefs.js:87`; `extension/extension.js:208` applies it. |
@@ -88,9 +89,9 @@ Status values:
 | Temp file and replace | Met | `extension/src/storage.js:147` uses `replace_contents_bytes_async` with `REPLACE_DESTINATION`. `tests/storage.test.js` verifies the saved file. |
 | Validate on load | Met | `extension/src/history.js:78` validates format and items. `tests/storage.test.js` covers malformed input. |
 | Recover missing, malformed, partial | Met | Missing file starts empty at `extension/src/storage.js:54`; malformed or incompatible data is backed up at `:106`. Partial-write recovery follows from the atomic replace and is not separately fault-injected. |
-| Avoid blocking Shell UI | Met | All file reads and writes are async at `extension/src/storage.js:43` and `:147`. |
-| Bound storage | Met | History, size, and retention limits in `extension/src/history.js:183`. |
-| User-accessible clear | Met | Popup Clear history actions at `extension/extension.js:117`. |
+| Avoid blocking Shell UI | Partial | History file reads and writes are async. Image decode and storage are bounded by `max-image-size` but currently use synchronous GIO calls. |
+| Bound storage | Met | History, text-size, image-size, and retention limits in `extension/src/history.js`. |
+| User-accessible clear | Met | Popup Clear actions delete queued image blobs after the history save succeeds. |
 | Do not claim SQLite durability | Met | README describes atomic JSON, not SQLite transactions. |
 
 ## 2.7 Backup and restore
@@ -174,7 +175,7 @@ release dependency.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| Functional and stable | Partial | Unit, lifecycle, capture, search, restore, private-mode, size-limit, upgrade, and removal tests pass. A live logged-in host check remains open. |
+| Functional and stable | Partial | Unit, lifecycle, capture, search, restore, private-mode, size-limit, upgrade, and removal tests pass. Live GNOME 50.1 checks passed for activation, popup, search, text and image capture, private mode, capture off, shortcut, accessible name, and the startup-capture fix. Keyboard focus, paste, pins, clear, clean install, and screenshots remain open. Shortcut conflict handling is covered by the headless toolbar probe. |
 | Differentiate from existing extensions | Partial | README describes the product. A public comparison and listing copy are not written. |
 | Public repository and issue tracker | Met | Public repository at `https://github.com/engida32/cliporium`; `develop` is the default branch until the first release. |
 | Respond to review feedback | Partial | Process requirement, not yet exercised. |
@@ -192,7 +193,7 @@ standard labels these as suggested components, not mandatory file boundaries.
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Target version defined | Met | GNOME Shell 50, Ubuntu 26.04. |
-| Test target Ubuntu and GNOME | Partial | GNOME Shell 50.1 Wayland headless tests passed on this host. A live logged-in session is still required. |
+| Test target Ubuntu and GNOME | Partial | GNOME Shell 50.1 Wayland headless tests passed, and a live GNOME 50.1 session passed the upgrade, popup, search, capture, private-mode, shortcut, and enable/disable checks. Keyboard and clean-install checks remain open. |
 | Install, enable, disable, upgrade, removal | Met | Install, enable, disable, and three enable/disable cycles passed. An in-place file upgrade preserved the `history-limit=37` setting, loaded the new stylesheet payload, and enabled cleanly. Removing the extension directory left the Shell alive with no Cliporium errors. |
 | Wayland and X11 | Met | Wayland headless tested. The Ubuntu 26.04 / GNOME 50 target host has no X11 session files and `gnome-shell --help` has no X11 option, so X11 is documented as unsupported for this release. |
 | Document limits | Met | README and this file. |
@@ -238,7 +239,7 @@ standard labels these as suggested components, not mandatory file boundaries.
 | No network transmission | Met | No network APIs imported. |
 | No clipboard logs | Met | Code inspection. |
 | Preferences open and save | Partial | Prefs launched with no Cliporium errors; saving each control was not scripted. |
-| Display scaling | Partial | Not tested. |
+| Display scaling | Partial | The headless toolbar probe passes at 200% text scaling; fractional display scaling is still untested. |
 
 ## 9 Release checklist
 
@@ -273,11 +274,15 @@ standard labels these as suggested components, not mandatory file boundaries.
 - [x] Source is readable and not minified.
 - [ ] Screenshots and user documentation for the listing are prepared.
 - [ ] Package tested from a clean install in a live logged-in GNOME 50 session.
+      Use `docs/live-verification.md` and record the result.
 - [ ] Maintainer is prepared to respond to review feedback.
 
 ## Remaining work
 
-1. Run a live logged-in GNOME 50 Wayland check: popup, focus, search, Enter,
-   pin, delete, clear, private mode, preferences, disable/enable.
+1. Finish `docs/live-verification.md`: upgrade, popup, search, text and image
+   capture, private mode, capture off, shortcut, and disable/enable passed.
+   Keyboard focus, Enter, Escape, pins, clear, a real shortcut conflict, clean
+   install, and uninstall/reinstall remain open. Screenshots are blocked by the
+   current compositor.
 2. Capture screenshots and write the listing description.
 3. Upload to extensions.gnome.org and respond to review.

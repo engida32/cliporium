@@ -27,7 +27,8 @@ Sources checked on 2026-11-01:
    telemetry, and no minified or obfuscated code.
 7. Prepare at least one screenshot and user-facing documentation for the
    listing.
-8. Test the package from a clean install in a logged-in GNOME 50 session.
+8. Run `docs/live-verification.md`, including the clean install in a logged-in
+   GNOME 50 session.
 
 ## Build the submission package
 
@@ -126,7 +127,8 @@ The current review guidelines require:
 
 ## Current blockers
 
-- The live logged-in GNOME 50 Wayland check is still open.
+- The live logged-in GNOME 50 Wayland check is still open. Use
+  `docs/live-verification.md` and record the results there.
 - X11 is not supported for this release. The Ubuntu 26.04 / GNOME 50 target host
   has no X11 session files and `gnome-shell --help` has no X11 option.
 - Screenshots and the listing description have not been prepared.
