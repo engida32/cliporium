@@ -1951,17 +1951,18 @@ const CliporiumIndicator = GObject.registerClass({
             this._settings.disconnect(id);
         this._settingsIds = [];
 
-        for (const id of [
-            this._captureTimeout,
-            this._focusTimeout,
-            this._searchTimeout,
-            this._noticeTimeout,
-            this._scrollTimeout,
-            this._previewFocusTimeout,
-        ]) {
-            if (id)
-                GLib.source_remove(id);
-        }
+        if (this._captureTimeout)
+            GLib.source_remove(this._captureTimeout);
+        if (this._focusTimeout)
+            GLib.source_remove(this._focusTimeout);
+        if (this._searchTimeout)
+            GLib.source_remove(this._searchTimeout);
+        if (this._noticeTimeout)
+            GLib.source_remove(this._noticeTimeout);
+        if (this._scrollTimeout)
+            GLib.source_remove(this._scrollTimeout);
+        if (this._previewFocusTimeout)
+            GLib.source_remove(this._previewFocusTimeout);
         this._captureTimeout = 0;
         this._focusTimeout = 0;
         this._searchTimeout = 0;
