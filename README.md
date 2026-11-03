@@ -10,6 +10,10 @@ The GNOME extension is self-contained. It runs inside the Shell process and
 stores history in your user data directory. No daemon, bundled binary, or
 external database is required.
 
+![Cliporium popup showing search, an image row, and recent text items](docs/images/cliporium-popup.png)
+
+*Screenshot from GNOME Shell 50.1 on Wayland. The clipboard items are synthetic.*
+
 ## Features
 
 - Captures plain text and PNG or JPEG images when the extension is enabled.
