@@ -2,13 +2,13 @@ import GLib from 'gi://GLib';
 
 export const TEXT_MIME = 'text/plain;charset=utf-8';
 
-export function payloadForItem(item, imageStore) {
+export async function payloadForItem(item, imageStore) {
     if (!item)
         return null;
     if (item.kind === 'image') {
-        if (!imageStore || typeof imageStore.load !== 'function')
+        if (!imageStore || typeof imageStore.loadAsync !== 'function')
             return null;
-        const bytes = imageStore.load(item.blob_path);
+        const bytes = await imageStore.loadAsync(item.blob_path);
         if (!bytes)
             return null;
         return {

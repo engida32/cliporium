@@ -53,10 +53,12 @@ assert(store.exists(saved.blob_path), 'saved image exists');
 assertEqual(fileMode(store.pathFor(saved.blob_path)), 0o600,
     'saved image is private');
 
-const loaded = store.load(saved.blob_path);
+const loaded = waitFor(store.loadAsync(saved.blob_path));
 assert(loaded, 'saved image can be loaded');
 assertEqual(new TextDecoder().decode(loaded.get_data()), new TextDecoder().decode(bytes),
     'loaded image bytes match');
+assertEqual(waitFor(store.loadAsync('images/missing.png')), null,
+    'missing image loads as null');
 
 const again = store.save(bytes, 'image/png');
 assertEqual(again.blob_path, saved.blob_path, 'duplicate bytes reuse the same path');

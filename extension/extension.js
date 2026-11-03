@@ -37,6 +37,7 @@ export default class CliporiumExtension extends Extension {
     }
 
     disable() {
+        this._indicator?.disable();
         this._indicator?.destroy();
         this._indicator = null;
     }
@@ -71,8 +72,11 @@ const CliporiumIndicator = GObject.registerClass({
         this._focusTimeout = 0;
         this._searchTimeout = 0;
         this._noticeTimeout = 0;
+        this._previewFocusTimeout = 0;
         this._settingsIds = [];
+        this._actorSignalIds = [];
         this._shortcutBound = false;
+        this._disabled = false;
         this._destroyed = false;
         this._historyReady = false;
         this._captureGeneration = 0;
@@ -173,13 +177,13 @@ const CliporiumIndicator = GObject.registerClass({
         this._buildNotice();
         this._buildFooter();
 
-        this._card.connect('key-press-event', (_actor, event) => {
+        this._connectActor(this._card, 'key-press-event', (_actor, event) => {
             if (event.get_key_symbol() === Clutter.KEY_Escape)
                 return this._onKeyPress(event);
             return Clutter.EVENT_PROPAGATE;
         });
 
-        this.menu.connect('open-state-changed', (_menu, open) => {
+        this._connectActor(this.menu, 'open-state-changed', (_menu, open) => {
             if (open)
                 this._onOpened();
             else
@@ -216,17 +220,17 @@ const CliporiumIndicator = GObject.registerClass({
             accessible_name: 'Search clipboard',
         });
         const clutterText = this._search.get_clutter_text();
-        clutterText.connect('text-changed', () => {
+        this._connectActor(clutterText, 'text-changed', () => {
             this._showClearConfirm = false;
             this._scheduleSearch();
         });
-        clutterText.connect('key-press-event', (_actor, event) =>
+        this._connectActor(clutterText, 'key-press-event', (_actor, event) =>
             this._onKeyPress(event)
         );
-        clutterText.connect('key-focus-in', () => {
+        this._connectActor(clutterText, 'key-focus-in', () => {
             this._searchPill.add_style_class_name('cliporium-search-focused');
         });
-        clutterText.connect('key-focus-out', () => {
+        this._connectActor(clutterText, 'key-focus-out', () => {
             this._searchPill.remove_style_class_name('cliporium-search-focused');
         });
         this._searchPill.add_child(this._search);
@@ -524,8 +528,23 @@ const CliporiumIndicator = GObject.registerClass({
         this._card.add_child(footer);
     }
 
+    _connectActor(actor, signal, callback) {
+        const id = actor.connect(signal, callback);
+        const entry = [actor, id];
+        this._actorSignalIds.push(entry);
+        try {
+            actor.connect('destroy', () => {
+                const index = this._actorSignalIds.indexOf(entry);
+                if (index !== -1)
+                    this._actorSignalIds.splice(index, 1);
+            });
+        } catch {
+        }
+        return id;
+    }
+
     _wireButton(button) {
-        button.connect('key-press-event', (_actor, event) => {
+        this._connectActor(button, 'key-press-event', (_actor, event) => {
             if (event.get_key_symbol() === Clutter.KEY_Escape)
                 return this._onKeyPress(event);
             return Clutter.EVENT_PROPAGATE;
@@ -544,7 +563,7 @@ const CliporiumIndicator = GObject.registerClass({
             accessible_name: accessibleName,
             child: new St.Icon({icon_name: iconName, icon_size: 16}),
         });
-        button.connect('clicked', callback);
+        this._connectActor(button, 'clicked', callback);
         this._wireButton(button);
         return button;
     }
@@ -566,7 +585,7 @@ const CliporiumIndicator = GObject.registerClass({
             child: box,
         });
         button._cliporiumLabel = label;
-        button.connect('clicked', callback);
+        this._connectActor(button, 'clicked', callback);
         this._wireButton(button);
         return button;
     }
@@ -1327,7 +1346,7 @@ const CliporiumIndicator = GObject.registerClass({
         row.add_child(pinButton);
         row.add_child(moreButton);
 
-        row.connect('button-press-event', (_actor, event) => {
+        this._connectActor(row, 'button-press-event', (_actor, event) => {
             return this._onRowPress(
                 item,
                 global.stage.get_event_actor(event),
@@ -1409,7 +1428,10 @@ const CliporiumIndicator = GObject.registerClass({
         this._showClearConfirm = false;
         this._confirmClearAll = false;
         this._render();
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        if (this._previewFocusTimeout)
+            GLib.source_remove(this._previewFocusTimeout);
+        this._previewFocusTimeout = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._previewFocusTimeout = 0;
             if (!this._destroyed && this._previewId)
                 this._previewBack.grab_key_focus();
             return GLib.SOURCE_REMOVE;
@@ -1612,7 +1634,7 @@ const CliporiumIndicator = GObject.registerClass({
         });
         button._cliporiumIcon = icon;
         button._cliporiumLabel = labelActor;
-        button.connect('clicked', callback);
+        this._connectActor(button, 'clicked', callback);
         this._wireButton(button);
         return button;
     }
@@ -1776,17 +1798,28 @@ const CliporiumIndicator = GObject.registerClass({
     }
 
     _copy(item) {
-        const payload = payloadForItem(item, this._imageStore);
-        if (!payload) {
+        payloadForItem(item, this._imageStore).then(payload => {
+            if (this._destroyed)
+                return;
+            if (!payload) {
+                this._setNotice(
+                    'The image file for this item is missing.',
+                    true,
+                    4000
+                );
+                return;
+            }
+            this._clipboard.set_content(CLIPBOARD, payload.mime, payload.bytes);
+            this.menu.close();
+        }).catch(error => {
+            if (this._destroyed)
+                return;
             this._setNotice(
-                'The image file for this item is missing.',
+                `Could not copy: ${error.message}`,
                 true,
                 4000
             );
-            return;
-        }
-        this._clipboard.set_content(CLIPBOARD, payload.mime, payload.bytes);
-        this.menu.close();
+        });
     }
 
     _togglePinSelected() {
@@ -1883,8 +1916,20 @@ const CliporiumIndicator = GObject.registerClass({
         return false;
     }
 
-    destroy() {
+    disable() {
+        if (this._disabled)
+            return;
+        this._disabled = true;
         this._destroyed = true;
+
+        for (const [actor, id] of this._actorSignalIds) {
+            try {
+                actor.disconnect(id);
+            } catch {
+            }
+        }
+        this._actorSignalIds = [];
+
         this._storage.destroy();
 
         if (this._shortcutBound) {
@@ -1912,6 +1957,7 @@ const CliporiumIndicator = GObject.registerClass({
             this._searchTimeout,
             this._noticeTimeout,
             this._scrollTimeout,
+            this._previewFocusTimeout,
         ]) {
             if (id)
                 GLib.source_remove(id);
@@ -1921,8 +1967,12 @@ const CliporiumIndicator = GObject.registerClass({
         this._searchTimeout = 0;
         this._noticeTimeout = 0;
         this._scrollTimeout = 0;
+        this._previewFocusTimeout = 0;
         this._cancelScrollRestore();
+    }
 
+    destroy() {
+        this.disable();
         super.destroy();
     }
 });

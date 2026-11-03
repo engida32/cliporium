@@ -145,6 +145,12 @@ patch = '''        this._storage.load();
                             },
                         };
                         this._copy(item);
+                        const copyDeadline = GLib.get_monotonic_time() + 300000;
+                        while (!payload && GLib.get_monotonic_time() < copyDeadline) {
+                            while (GLib.MainContext.default().pending())
+                                GLib.MainContext.default().iteration(false);
+                            GLib.usleep(10000);
+                        }
                         this._clipboard = realClipboard;
                         check('image.copy.mime', payload?.mime === 'image/png',
                             payload?.mime ?? 'missing');

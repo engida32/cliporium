@@ -144,15 +144,23 @@ export class ImageStore {
         });
     }
 
-    load(blobPath) {
-        if (!this.exists(blobPath))
-            return null;
-        const [ok, contents] = Gio.File.new_for_path(
-            this.pathFor(blobPath)
-        ).load_contents(null);
-        if (!ok)
-            return null;
-        return GLib.Bytes.new(contents);
+    loadAsync(blobPath) {
+        return new Promise((resolve, reject) => {
+            Gio.File.new_for_path(this.pathFor(blobPath)).load_contents_async(
+                null,
+                (file, result) => {
+                    try {
+                        const [ok, contents] = file.load_contents_finish(result);
+                        resolve(ok ? GLib.Bytes.new(contents) : null);
+                    } catch (error) {
+                        if (error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND))
+                            resolve(null);
+                        else
+                            reject(error);
+                    }
+                }
+            );
+        });
     }
 
     delete(blobPath) {
