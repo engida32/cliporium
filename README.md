@@ -1,6 +1,7 @@
 # Cliporium
 
 [![CI](https://github.com/engida32/cliporium/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/engida32/cliporium/actions/workflows/ci.yml)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
 Cliporium is a keyboard-first clipboard manager for GNOME Shell 50. It keeps
 text and image history on your machine, with fast search, pins, previews, and
